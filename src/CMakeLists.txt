@@ -1,0 +1,22 @@
+add_subdirectory(Utilities)
+add_subdirectory(Core)
+add_subdirectory(Database)
+add_subdirectory(Markdown)
+add_subdirectory(Search)
+add_subdirectory(Filesystem)
+add_subdirectory(Sync)
+add_subdirectory(Settings)
+add_subdirectory(Export)
+add_subdirectory(Spelling)
+
+if(NOCTIS_BUILD_UI)
+    find_package(Qt6 QUIET COMPONENTS Widgets)
+    if(Qt6_FOUND)
+        add_subdirectory(Editor)
+        add_subdirectory(UI)
+    else()
+        message(WARNING "Qt6 no encontrado: se omiten los targets Editor y UI. "
+                         "Instala Qt6 (find_package debe poder localizarlo, p. ej. "
+                         "via CMAKE_PREFIX_PATH) y reconfigura para compilar la interfaz.")
+    endif()
+endif()

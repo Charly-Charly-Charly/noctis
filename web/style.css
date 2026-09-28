@@ -1,0 +1,546 @@
+/* Mismo lenguaje visual que el escritorio: crema/tinta, monoespaciada,
+   bordes finos, selección oscura. Ver src/UI/src/Theme.cpp para la versión
+   Qt de esta misma paleta. */
+
+:root {
+  --bg: #ECEEE1;
+  --panel: #F2F3E9;
+  --ink: #1D1D1B;
+  --ink-soft: #4A4A46;
+  --border: #1D1D1B;
+  --accent-dot: #C97A3D;
+  --danger: #B3432B;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1B1C17;
+    --panel: #242520;
+    --ink: #ECEEE1;
+    --ink-soft: #9A9B90;
+    --border: #ECEEE1;
+    --accent-dot: #E0985A;
+    --danger: #E08070;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Sin esto, cualquier regla que fije "display" por id/clase (como
+   #appScreen más abajo) le gana en especificidad al estilo por defecto del
+   atributo [hidden] del navegador, y el elemento "oculto" se sigue viendo. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, "Courier New", monospace;
+  font-size: 14px;
+}
+
+button, input, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+.screen { height: 100%; }
+
+/* --- Login --------------------------------------------------------- */
+
+#loginScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.login-card .subtitle {
+  margin: 0 0 16px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.login-card label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-top: 8px;
+}
+
+.login-card input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 9px 16px;
+  outline: none;
+}
+
+.login-card button[type="submit"] {
+  margin-top: 20px;
+  background: var(--border);
+  color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-card button[type="submit"]:hover { opacity: 0.85; }
+
+.link-button {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  align-self: center;
+}
+
+.link-button:hover { color: var(--ink); }
+
+.error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.success {
+  color: var(--ink);
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+/* --- Layout principal ------------------------------------------------- */
+
+#appScreen {
+  display: flex;
+  height: 100%;
+}
+
+#sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px 12px 14px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.brand .star { color: var(--border); }
+
+.sidebar-section-label {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 14px 4px 14px;
+}
+
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 6px;
+}
+
+.tree-folder > .tree-folder-label {
+  padding: 6px 8px;
+  cursor: pointer;
+  font-weight: 600;
+  border-bottom: 1px solid var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tree-folder-children {
+  padding-left: 14px;
+}
+
+.tree-note {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--ink-soft);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tree-note:hover { background: var(--panel); }
+
+.tree-note.active {
+  background: var(--border);
+  color: var(--bg);
+}
+
+.tree-note .dot {
+  color: var(--accent-dot);
+  font-size: 10px;
+  visibility: hidden;
+}
+
+.tree-note.dirty .dot { visibility: visible; }
+
+.sidebar-footer {
+  margin: 8px 10px;
+  padding: 14px 16px;
+  background: var(--border);
+  color: var(--bg);
+  border-radius: 12px;
+}
+
+.sidebar-footer #noteCount { font-weight: 700; }
+.sidebar-footer #syncStatus { font-size: 10px; margin-top: 4px; }
+
+.sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 0 14px;
+}
+
+/* --- Botones genéricos -------------------------------------------------- */
+
+.icon-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+}
+
+.icon-button:hover { background: var(--border); color: var(--bg); }
+
+.pill-button {
+  border: 1px solid var(--border);
+  background: var(--border);
+  color: var(--bg);
+  border-radius: 14px;
+  padding: 6px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pill-button:hover { opacity: 0.85; }
+
+button#conflictLoadTheirs {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 6px 16px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+/* --- Contenido principal ------------------------------------------------ */
+
+#content {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.note-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.breadcrumb {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.note-status {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.note-status.conflict { color: var(--danger); font-weight: 600; }
+
+.spacer { flex: 1; }
+
+.view-mode-group {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.view-mode-button {
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.view-mode-button:last-child { border-right: none; }
+
+.view-mode-button:hover { color: var(--ink); }
+
+.view-mode-button.active {
+  background: var(--border);
+  color: var(--bg);
+}
+
+.editor-row {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.editor-row.split #editor,
+.editor-row.split #preview {
+  width: 50%;
+  flex: none;
+}
+
+.editor-row.split #preview {
+  border-left: 1px solid var(--border);
+}
+
+#editor {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: var(--bg);
+  color: var(--ink);
+  padding: 20px;
+  line-height: 1.6;
+}
+
+/* --- Vista previa renderizada -------------------------------------------- */
+
+.preview-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px;
+  line-height: 1.6;
+}
+
+.preview-pane h1, .preview-pane h2, .preview-pane h3,
+.preview-pane h4, .preview-pane h5, .preview-pane h6 {
+  margin: 1.2em 0 0.5em 0;
+  line-height: 1.3;
+}
+
+.preview-pane h1 { font-size: 1.6em; }
+.preview-pane h2 { font-size: 1.35em; }
+.preview-pane h3 { font-size: 1.15em; }
+
+.preview-pane p { margin: 0 0 1em 0; }
+
+.preview-pane ul, .preview-pane ol { margin: 0 0 1em 0; padding-left: 1.6em; }
+
+.preview-pane blockquote {
+  margin: 0 0 1em 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--accent-dot);
+  color: var(--ink-soft);
+}
+
+.preview-pane code {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+
+.preview-pane pre {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0 0 1em 0;
+}
+
+.preview-pane pre code { background: none; border: none; padding: 0; }
+
+.preview-pane a { color: var(--ink); }
+
+.preview-pane hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+.annotations-panel {
+  width: 280px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.annotations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.annotations-hint {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.annotation-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.annotation-quote {
+  font-size: 11px;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent-dot);
+  padding-left: 8px;
+  margin: 0 0 6px 0;
+  font-style: italic;
+}
+
+.annotation-body { margin: 0 0 6px 0; white-space: pre-wrap; }
+
+.annotation-delete {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+
+/* --- Modal de conflicto -------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-card {
+  width: 360px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.modal-card h3 { margin-top: 0; }
+
+.modal-card label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-top: 10px;
+}
+
+.modal-card input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  outline: none;
+  margin-top: 4px;
+}
+
+.modal-card .hint {
+  color: var(--ink-soft);
+  font-size: 11px;
+  margin: 6px 0 0 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.modal-actions button[type="button"] {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 6px 16px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+/* --- Exportar a PDF ------------------------------------------------------- */
+
+/* Fuera de @media print, este contenedor no debe verse ni ocupar espacio. */
+.print-only { display: none; }
+
+@media print {
+  /* Todo lo demás desaparece del PDF: solo el contenido renderizado importa. */
+  body > *:not(#printArea) { display: none !important; }
+
+  .print-only {
+    display: block !important;
+    padding: 0 24px;
+  }
+
+  .print-only h1:first-child { margin-top: 0; }
+}

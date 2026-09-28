@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noctis</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Pantalla de login: única vista antes de tener un token válido. -->
+<section id="loginScreen" class="screen">
+  <form id="loginForm" class="login-card">
+    <h1>Noctis</h1>
+    <p class="subtitle">Editor de notas Markdown local-first</p>
+
+    <label for="loginEmail">Correo</label>
+    <input id="loginEmail" type="email" autocomplete="username" required>
+
+    <label for="loginPassword">Contraseña</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" required>
+
+    <label for="loginDevice" id="loginDeviceLabel">Este dispositivo</label>
+    <input id="loginDevice" type="text" placeholder="Navegador">
+
+    <button type="submit" id="loginSubmit">Iniciar sesión</button>
+
+    <button type="button" id="toggleModeButton" class="link-button">
+      ¿No tenés cuenta? Creá una
+    </button>
+
+    <p id="loginError" class="error" hidden></p>
+    <p id="loginSuccess" class="success" hidden></p>
+  </form>
+</section>
+
+<!-- App principal: oculta hasta que hay sesión. -->
+<section id="appScreen" class="screen" hidden>
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <span class="brand">NOCTIS <span class="star">★</span></span>
+      <button id="newNoteButton" class="icon-button" title="Nueva nota">+</button>
+    </div>
+
+    <div class="sidebar-section-label">NOTAS</div>
+    <div id="tree" class="tree"></div>
+
+    <div class="sidebar-footer">
+      <div id="noteCount">0 nota(s)</div>
+      <div id="syncStatus">Sin sincronizar</div>
+    </div>
+
+    <div class="sidebar-actions">
+      <button id="syncButton" class="pill-button">Sincronizar</button>
+      <button id="logoutButton" class="icon-button" title="Cerrar sesión">⏻</button>
+    </div>
+  </aside>
+
+  <main id="content">
+    <div id="emptyState" class="empty-state">
+      <h2>Ninguna nota abierta</h2>
+      <p>Elegí una nota de la izquierda o creá una nueva.</p>
+    </div>
+
+    <div id="noteView" class="note-view" hidden>
+      <div class="breadcrumb">
+        <span id="notePath"></span>
+        <span id="noteStatus" class="note-status"></span>
+        <span class="spacer"></span>
+
+        <div class="view-mode-group" role="group" aria-label="Modo de vista">
+          <button type="button" class="view-mode-button" data-mode="editor">Editor</button>
+          <button type="button" class="view-mode-button" data-mode="preview">Vista previa</button>
+          <button type="button" class="view-mode-button" data-mode="split">Split</button>
+        </div>
+
+        <button id="exportButton" class="icon-button" title="Exportar a PDF">⭳</button>
+      </div>
+
+      <div id="editorRow" class="editor-row">
+        <textarea id="editor" spellcheck="false"></textarea>
+        <div id="preview" class="preview-pane" hidden></div>
+
+        <aside id="annotationsPanel" class="annotations-panel">
+          <div class="annotations-header">
+            <span>ANOTACIONES</span>
+            <button id="addAnnotationButton" class="icon-button" title="Anotar selección">+</button>
+          </div>
+          <p class="annotations-hint">Seleccioná texto en la nota y tocá "+" para comentarlo.</p>
+          <div id="annotationsList"></div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- Diálogo de nueva nota: reemplaza los prompt() nativos. -->
+<div id="newNoteDialog" class="modal" hidden>
+  <form id="newNoteForm" class="modal-card">
+    <h3>Nueva nota</h3>
+
+    <label for="newNoteTitle">Título</label>
+    <input id="newNoteTitle" type="text" required autocomplete="off">
+
+    <label for="newNoteFolder">Carpeta (opcional)</label>
+    <input id="newNoteFolder" type="text" list="existingFolders" placeholder="Universidad/Derecho Civil"
+           autocomplete="off">
+    <datalist id="existingFolders"></datalist>
+    <p class="hint">Elegí una carpeta existente de la lista, o escribí una ruta nueva
+      (con "/" para subcarpetas) — se crea sola con esta nota.</p>
+
+    <div class="modal-actions">
+      <button type="submit" class="pill-button">Crear</button>
+      <button type="button" id="newNoteCancel">Cancelar</button>
+    </div>
+    <p id="newNoteError" class="error" hidden></p>
+  </form>
+</div>
+
+<!-- Solo visible al imprimir/exportar a PDF (ver @media print en style.css). -->
+<div id="printArea" class="print-only"></div>
+
+<!-- Diálogo de conflicto: nunca se sobrescribe en silencio. -->
+<div id="conflictDialog" class="modal" hidden>
+  <div class="modal-card">
+    <h3>Esta nota cambió en otro dispositivo</h3>
+    <p>Alguien más guardó una versión distinta mientras editabas. ¿Qué querés hacer?</p>
+    <div class="modal-actions">
+      <button id="conflictKeepMine" class="pill-button">Mantener mi versión</button>
+      <button id="conflictLoadTheirs">Descargar la del servidor</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

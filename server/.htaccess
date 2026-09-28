@@ -1,0 +1,28 @@
+# Todas las peticiones entran por index.php.
+RewriteEngine On
+
+# Apache no pasa el encabezado Authorization a PHP por defecto (mod_php/CGI).
+# Sin esta línea, la autenticación con Bearer falla silenciosamente.
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# src/ y sql/ viven en esta misma carpeta (muchos hostings compartidos no
+# dejan apuntar el Document Root a una subcarpeta "public"), así que hay que
+# bloquear el acceso HTTP directo a mano. PHP los sigue leyendo bien: esto
+# solo afecta pedidos que llegan por el navegador, no require()/include().
+RewriteRule ^(src|sql)/ - [F,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Mismo motivo: estos archivos sueltos no deben poder pedirse por HTTP.
+<FilesMatch "^(config\.php|config\.example\.php|\.gitignore|\.htaccess|README\.md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

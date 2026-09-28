@@ -1,0 +1,3 @@
+// Ícono del ejecutable (mostrado en el Explorador, la barra de tareas y
+// Alt+Tab). Windows toma por convención el primer recurso ICON del .exe.
+IDI_ICON1 ICON "noctis.ico"
