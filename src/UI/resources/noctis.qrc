@@ -14,5 +14,6 @@
         <file alias="icons/close.svg">icons/close.svg</file>
         <file alias="icons/star.svg">icons/star.svg</file>
         <file alias="icons/history.svg">icons/history.svg</file>
+        <file alias="icons/folder.svg">icons/folder.svg</file>
     </qresource>
 </RCC>

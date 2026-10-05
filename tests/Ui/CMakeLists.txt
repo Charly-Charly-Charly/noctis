@@ -6,6 +6,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Svg)
 add_executable(noctis_ui_tests
     PreviewPrintTests.cpp
     IconTests.cpp
+    ThemeFontTests.cpp
     ${CMAKE_SOURCE_DIR}/src/UI/src/IconButton.cpp
     ${CMAKE_SOURCE_DIR}/src/UI/include/UI/IconButton.h
     ${CMAKE_SOURCE_DIR}/src/UI/src/TreeRowWidget.cpp

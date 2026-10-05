@@ -1,5 +1,6 @@
 #include "UI/Theme.h"
 
+#include <QFontDatabase>
 #include <QPainter>
 #include <QPixmap>
 #include <QStringList>
@@ -81,9 +82,28 @@ QIcon TabCloseButtonStyle::standardIcon(StandardPixmap standardIcon, const QStyl
     return QIcon(pixmap);
 }
 
+QString monospaceFamily() {
+    // Una sola familia, la primera instalada de la lista. Darle a Qt una lista
+    // de familias de respaldo (QFont::setFamilies, o "font-family: A, B" en el
+    // QSS) hace que arme un motor de fuentes combinado que carga las fuentes
+    // de respaldo completas: medido en esta app, unos 30 MB de RAM extra
+    // (de ~38 a ~68 MB) desde el primer widget con texto. Con una única
+    // familia ese costo no existe; los caracteres que falten en la fuente los
+    // resuelve igual el reemplazo automático del sistema.
+    static const QString family = [] {
+        for (const QString& candidate : {QStringLiteral("Cascadia Mono"),
+                                         QStringLiteral("JetBrains Mono"),
+                                         QStringLiteral("Consolas"),
+                                         QStringLiteral("Courier New")}) {
+            if (QFontDatabase::hasFamily(candidate)) return candidate;
+        }
+        return QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+    }();
+    return family;
+}
+
 QFont applicationFont() {
-    QFont font;
-    font.setFamilies(QStringList{"Cascadia Mono", "JetBrains Mono", "Consolas", "Courier New"});
+    QFont font(monospaceFamily());
     font.setStyleHint(QFont::Monospace);
     font.setPointSize(10);
     // Explícito a propósito: el motor de impresión de Qt (usado también para
@@ -104,7 +124,7 @@ QMainWindow, QDialog {
 
 QWidget {
     color: %3;
-    font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+    font-family: "%7";
 }
 
 QMenuBar {
@@ -491,7 +511,7 @@ QTabBar::close-button:hover {
     font-weight: 700;
 }
 )")
-        .arg(p.background, p.panel, p.ink, p.inkSoft, p.border, p.hover);
+        .arg(p.background, p.panel, p.ink, p.inkSoft, p.border, p.hover, monospaceFamily());
 }
 
 } // namespace noctis::ui::theme

@@ -18,7 +18,7 @@ namespace {
 
 const char* const kIconNames[] = {"add",   "collapse",   "expand",  "settings", "keyboard",
                                   "help",  "arrow_back", "more_vert", "arrow_up", "arrow_down",
-                                  "close", "star",       "history"};
+                                  "close", "star",       "history", "folder"};
 
 // ¿Hay algún píxel con trazo (no transparente)?
 bool hasInk(const QImage& image) {

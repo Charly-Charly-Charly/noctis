@@ -101,7 +101,7 @@ void PreviewWidget::setMarkdownSource(const QString& source) {
 std::unique_ptr<QTextDocument> PreviewWidget::createPrintDocument(const QString& markdown) const {
     auto document = std::make_unique<QTextDocument>();
 
-    // "Cascadia Mono" (primera de la lista de applicationFont()) es una
+    // "Cascadia Mono" (la fuente de la app, ver theme::monospaceFamily()) es una
     // fuente variable: Windows la expone con instancias con nombre propio
     // para los pesos livianos (Light, SemiBold, SemiLight...) pero sin una
     // "Cascadia Mono Bold" separada, y el motor de fuentes de Qt para
@@ -112,7 +112,8 @@ std::unique_ptr<QTextDocument> PreviewWidget::createPrintDocument(const QString&
     // hacerlo después no actualiza el peso ya grabado en cada fragmento.
     // Tamaño base, sin el zoom de pantalla.
     QFont printFont = font();
-    printFont.setFamilies({"Consolas", "Courier New"});
+    // Una sola familia: una lista (setFamilies) cuesta ~30 MB de RAM; ver Theme.cpp.
+    printFont.setFamily(QStringLiteral("Consolas"));
     printFont.setWeight(QFont::Normal);
     printFont.setPointSizeF(baseFontSize_);
     document->setDefaultFont(printFont);

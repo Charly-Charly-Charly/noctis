@@ -11,7 +11,13 @@ namespace noctis::ui::theme {
 // modo oscuro, tipografía monoespaciada, bordes finos y tarjetas simples.
 QString stylesheet(bool dark);
 
-// Fuente monoespaciada con fallback, para setear en QApplication.
+// Familia monoespaciada que usa toda la app (la primera instalada entre
+// Cascadia Mono, JetBrains Mono, Consolas y Courier New). Es una sola a
+// propósito: ver el comentario en Theme.cpp sobre el costo de memoria de las
+// listas de familias.
+QString monospaceFamily();
+
+// Fuente monoespaciada para setear en QApplication.
 QFont applicationFont();
 
 // Fondo de hover del tema (más oscuro que el fondo en claro, más claro en

@@ -81,7 +81,7 @@ void FolderTreeWidget::refresh() {
         item->setData(0, kKindRole, FolderKind);
         item->setData(0, kPayloadRole, QString::fromStdString(folder.path.string()));
 
-        auto* row = new TreeRowWidget(numberOf(position), QString::fromUtf8("▦"),
+        auto* row = new TreeRowWidget(numberOf(position), QStringLiteral("folder"),
                                        QString::fromStdString(folder.name),
                                        TreeRowWidget::Kind::Folder);
         connect(row, &TreeRowWidget::activated, this,
@@ -127,7 +127,7 @@ QTreeWidgetItem* FolderTreeWidget::populateFolderItem(QTreeWidgetItem* parentIte
         item->setData(0, kKindRole, FolderKind);
         item->setData(0, kPayloadRole, QString::fromStdString(subfolder.path.string()));
 
-        auto* row = new TreeRowWidget(numberOf(position), QString::fromUtf8("▦"),
+        auto* row = new TreeRowWidget(numberOf(position), QStringLiteral("folder"),
                                        QString::fromStdString(subfolder.name),
                                        TreeRowWidget::Kind::Folder);
         connect(row, &TreeRowWidget::activated, this,
