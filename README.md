@@ -9,6 +9,10 @@
   el servidor es solo una réplica opcional.
 </p>
 
+<p align="center">
+  <a href="https://github.com/Charly-Charly-Charly/noctis/actions/workflows/ci.yml"><img src="https://github.com/Charly-Charly-Charly/noctis/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
+
 ---
 
 ## Qué es
@@ -75,6 +79,11 @@ build sigue funcionando — el corrector queda deshabilitado en silencio.
 ```bash
 ctest --test-dir build
 ```
+
+### Publicar una versión
+
+Un tag `vX.Y.Z` dispara el build, los tests y la publicación del zip en GitHub
+Actions; ver [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Servidor y cliente web
 

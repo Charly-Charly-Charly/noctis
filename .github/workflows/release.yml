@@ -1,0 +1,67 @@
+# Publica un release al empujar un tag con formato vX.Y.Z (o vX.Y.Z-beta, que
+# queda como prerelease y el aviso de actualizaciones de la app lo ignora).
+#
+#   git tag v0.4.0 && git push origin v0.4.0
+#
+# El tag tiene que coincidir con VERSION en CMakeLists.txt.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: El tag coincide con CMakeLists.txt
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "El tag '$tag' no tiene formato vX.Y.Z[-sufijo]" >&2; exit 1
+          fi
+          version=$(sed -nE '/^project\(/,/\)/ s/^[[:space:]]*VERSION[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt | head -n1)
+          base="${tag#v}"; base="${base%%-*}"
+          if [ "$base" != "$version" ]; then
+            echo "El tag $tag no coincide con VERSION $version de CMakeLists.txt. Actualizá CMakeLists.txt y volvé a crear el tag." >&2
+            exit 1
+          fi
+
+  build:
+    needs: check-version
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # crear el release y subir el zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: dist
+
+      - name: Crear el release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          ASSET: dist/${{ needs.build.outputs.artifact }}.zip
+        run: |
+          args=(--title "Noctis $TAG" --verify-tag)
+          # Notas a mano si existen (release-notes/vX.Y.Z.md); si no, las genera
+          # GitHub a partir de los commits.
+          if [ -f "release-notes/$TAG.md" ]; then
+            args+=(--notes-file "release-notes/$TAG.md")
+          else
+            args+=(--generate-notes)
+          fi
+          # vX.Y.Z-algo => prerelease.
+          if [[ "$TAG" == *-* ]]; then args+=(--prerelease); fi
+          gh release create "$TAG" "$ASSET" "${args[@]}"

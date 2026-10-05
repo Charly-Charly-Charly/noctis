@@ -1,0 +1,109 @@
+# Compila, prueba y empaqueta Noctis para Windows. Es un workflow reutilizable:
+# lo llaman ci.yml (cada push/PR) y release.yml (al publicar un tag v*).
+name: Build
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: "Versión del proyecto (la de CMakeLists.txt)"
+        value: ${{ jobs.build.outputs.version }}
+      artifact:
+        description: "Nombre del artefacto con el zip"
+        value: ${{ jobs.build.outputs.artifact }}
+
+env:
+  # Qt con MinGW, el mismo toolchain con el que se desarrolla. Subir la versión
+  # acá si hace falta una API más nueva.
+  QT_VERSION: "6.8.3"
+  QT_ARCH: win64_mingw
+  QT_MINGW_TOOL: tools_mingw1310
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      artifact: ${{ steps.meta.outputs.artifact }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Leer versión del proyecto
+        id: meta
+        run: |
+          version=$(sed -nE '/^project\(/,/\)/ s/^[[:space:]]*VERSION[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt | head -n1)
+          if [ -z "$version" ]; then echo "No se pudo leer VERSION de CMakeLists.txt" >&2; exit 1; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "artifact=noctis-v$version-windows-x64" >> "$GITHUB_OUTPUT"
+
+      - name: Instalar Qt y MinGW
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: ${{ env.QT_ARCH }}
+          tools: ${{ env.QT_MINGW_TOOL }}
+          cache: true
+
+      - name: Configurar
+        run: |
+          # Compilar con el MinGW de Qt (mismo ABI), no con otro que traiga el runner.
+          mingw_bin=$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin
+          echo "MinGW: $mingw_bin"
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$mingw_bin/gcc.exe" \
+            -DCMAKE_CXX_COMPILER="$mingw_bin/g++.exe" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+
+      - name: Compilar
+        run: cmake --build build --parallel 3
+
+      - name: Tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Armar el paquete
+        run: |
+          rm -rf package && mkdir package
+          cp build/src/UI/noctis.exe package/
+          # Copia Qt (DLL + plugins) y el runtime de MinGW junto al .exe.
+          windeployqt --release --no-translations --compiler-runtime package/noctis.exe
+          # Diccionario del corrector ortográfico (lo busca junto al .exe).
+          cp -r build/src/UI/dictionaries package/dictionaries
+          ls -R package | head -80
+
+      - name: Prueba de humo del paquete
+        run: |
+          # Arranca el .exe empaquetado con un perfil vacío: si falta alguna DLL o
+          # plugin, el proceso muere en segundos.
+          export APPDATA="$RUNNER_TEMP/noctis-smoke"
+          mkdir -p "$APPDATA"
+          cd package
+          ./noctis.exe &
+          sleep 8
+          if tasklist | grep -qi noctis.exe; then
+            echo "noctis.exe sigue en ejecución: OK"
+            taskkill //F //IM noctis.exe > /dev/null
+          else
+            echo "noctis.exe terminó antes de tiempo (¿falta una DLL o plugin?)" >&2
+            exit 1
+          fi
+
+      - name: Comprimir
+        run: |
+          name="${{ steps.meta.outputs.artifact }}"
+          powershell -NoProfile -Command "Compress-Archive -Path 'package/*' -DestinationPath '$name.zip' -CompressionLevel Optimal"
+          ls -la "$name.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.artifact }}
+          path: ${{ steps.meta.outputs.artifact }}.zip
+          if-no-files-found: error
+          retention-days: 14
