@@ -8,13 +8,15 @@
 #include <QPropertyAnimation>
 #include <QPushButton>
 
+#include "UI/IconButton.h"
+
 namespace noctis::ui {
 
 BreadcrumbWidget::BreadcrumbWidget(QWidget* parent) : QWidget(parent) {
     setObjectName("breadcrumb");
     setAttribute(Qt::WA_StyledBackground, true);
 
-    backButton_ = new QPushButton(QString::fromUtf8("←"), this);
+    backButton_ = new IconButton(QString::fromUtf8("←"), this);
     backButton_->setObjectName("breadcrumbBack");
     backButton_->setFixedSize(24, 24);
     connect(backButton_, &QPushButton::clicked, this, &BreadcrumbWidget::backRequested);
@@ -28,7 +30,7 @@ BreadcrumbWidget::BreadcrumbWidget(QWidget* parent) : QWidget(parent) {
     dateOpacity_->setOpacity(1.0);
     dateLabel_->setGraphicsEffect(dateOpacity_);
 
-    moreButton_ = new QPushButton(QString::fromUtf8("⋮"), this);
+    moreButton_ = new IconButton(QString::fromUtf8("⋮"), this);
     moreButton_->setObjectName("breadcrumbMore");
     moreButton_->setFixedSize(24, 24);
     connect(moreButton_, &QPushButton::clicked, this, [this] {

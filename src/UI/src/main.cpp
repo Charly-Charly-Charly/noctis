@@ -16,6 +16,7 @@
 #include "Filesystem/LegacyIdMigration.h"
 #include "Settings/JsonSettingsStore.h"
 #include "UI/AppContext.h"
+#include "UI/HoverFade.h"
 #include "UI/MainWindow.h"
 #include "UI/Theme.h"
 #include "Utilities/Paths.h"
@@ -29,6 +30,10 @@ int main(int argc, char** argv) {
     // toda ventana/diálogo de la app (título, Alt+Tab) lo tenga en tiempo
     // de ejecución, sin depender de que Windows resuelva bien el recurso.
     app.setWindowIcon(QIcon(":/logo.png"));
+    // Fundido al pasar el mouse para todos los QPushButton (también los de
+    // los diálogos, que crea Qt por su cuenta).
+    app.setProperty("noctisHoverColor", noctis::ui::theme::hoverColor(/*dark=*/false));
+    app.installEventFilter(new noctis::ui::HoverFadeInstaller(&app));
 
     noctis::settings::JsonSettingsStore settings(noctis::paths::configDirectory() /
                                                   "settings.json");

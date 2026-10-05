@@ -1,8 +1,11 @@
 #pragma once
 
+#include <QColor>
 #include <QWidget>
 
+class QEnterEvent;
 class QLabel;
+class QPropertyAnimation;
 
 namespace noctis::ui {
 
@@ -13,6 +16,8 @@ namespace noctis::ui {
 // MainWindow controla explícitamente con setActive().
 class TreeRowWidget : public QWidget {
     Q_OBJECT
+    Q_PROPERTY(qreal hoverProgress READ hoverProgress WRITE setHoverProgress)
+    Q_PROPERTY(QColor hoverColor READ hoverColor WRITE setHoverColor)
 
 public:
     enum class Kind { Section, Folder, Note };
@@ -23,6 +28,13 @@ public:
     void setActive(bool active);
     void setDirty(bool dirty);
 
+    qreal hoverProgress() const { return hoverProgress_; }
+    void setHoverProgress(qreal progress);
+
+    // Lo fija el stylesheet (qproperty-hoverColor) para seguir el tema.
+    QColor hoverColor() const { return hoverColor_; }
+    void setHoverColor(const QColor& color);
+
 signals:
     void activated();
     void contextMenuRequested(const QPoint& globalPos);
@@ -30,9 +42,17 @@ signals:
 protected:
     void mousePressEvent(QMouseEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+    void enterEvent(QEnterEvent* event) override;
+    void leaveEvent(QEvent* event) override;
 
 private:
+    void animateHoverTo(qreal target);
+
     QLabel* dotLabel_;
+    QPropertyAnimation* hoverAnimation_;
+    qreal hoverProgress_ = 0.0;
+    QColor hoverColor_{0xF2, 0xF3, 0xE9};
 };
 
 } // namespace noctis::ui

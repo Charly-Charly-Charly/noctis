@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 class Hunspell;
 
@@ -20,6 +21,10 @@ public:
 
     bool isAvailable() const;
     bool isCorrect(const std::string& word) const;
+
+    // Correcciones propuestas por el diccionario (vacío si no hay o si el
+    // diccionario no está disponible).
+    std::vector<std::string> suggest(const std::string& word) const;
 
 private:
     std::unique_ptr<Hunspell> hunspell_;

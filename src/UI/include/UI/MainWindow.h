@@ -41,6 +41,7 @@ class SidebarWidget;
 class BreadcrumbWidget;
 class WelcomeScreen;
 class PreviewWidget;
+class FindBar;
 
 // Ventana principal. Solo orquesta widgets y delega toda la lógica a los
 // Services del Core (agrupados en AppContext): no contiene reglas de negocio.
@@ -74,6 +75,14 @@ private:
     void setViewMode(ViewMode mode);
     void updatePreview(const QString& content);
     void openSearchDialog();
+
+    // Buscar dentro de la nota abierta (Ctrl+F): en el editor, o en la vista
+    // previa cuando es lo único visible.
+    void openFindBar();
+    void closeFindBar();
+    void applyFindQuery(const QString& query);
+    void findStep(bool backwards);
+    void findInPreview(const QString& query, bool backwards, bool restart);
     void exportCurrentNote();
     void exportToPdf(const QString& path);
     void toggleDarkMode(bool enabled);
@@ -97,6 +106,10 @@ private:
     void updateStatusBar();
     void applyTabBarStyle();
 
+    // Zoom compartido por editor y vista previa. `level` es relativo al
+    // tamaño de fuente base y se acota a [kMinZoom, kMaxZoom].
+    void setZoomLevel(int level);
+
     AppContext context_;
 
     editor::EditorWidget* editor_ = nullptr;
@@ -109,6 +122,7 @@ private:
     QTabBar* tabBar_ = nullptr;
     std::unique_ptr<theme::TabCloseButtonStyle> tabBarStyle_;
     BreadcrumbWidget* breadcrumb_ = nullptr;
+    FindBar* findBar_ = nullptr;
     QStackedWidget* contentStack_ = nullptr;
     WelcomeScreen* welcomeScreen_ = nullptr;
     QLabel* statusSaveLabel_ = nullptr;
@@ -129,6 +143,7 @@ private:
     bool syncingScroll_ = false; // evita eco infinito entre los scroll de editor y preview
     ViewMode viewMode_ = ViewMode::Editor;
     bool darkMode_ = false;
+    int zoomLevel_ = 0;
 };
 
 } // namespace noctis::ui

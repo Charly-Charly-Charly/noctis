@@ -1,17 +1,28 @@
 #include "UI/SidebarWidget.h"
 
+#include <QEasingCurve>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QVariantAnimation>
 
 #include "UI/FolderTreeWidget.h"
+#include "UI/IconButton.h"
 
 namespace noctis::ui {
 
 namespace {
 constexpr int kCollapsedWidth = 48;
 constexpr int kExpandedMinWidth = 200;
+constexpr int kWidthAnimationMs = 180;
+
+// Durante la animación el contenido cambia a mitad de camino en vez de
+// quedar apretujado hasta el final: por debajo de este ancho se ve la mini
+// franja, por encima el contenido normal; el título y los botones del header
+// necesitan más espacio todavía para no pisarse.
+constexpr int kContentThreshold = 110;
+constexpr int kHeaderThreshold = 170;
 } // namespace
 
 SidebarWidget::SidebarWidget(core::INoteRepository& repository,
@@ -32,14 +43,14 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     titleLabel_->setObjectName("sidebarTitle");
     starLabel_ = new QLabel(QString::fromUtf8(" ★"), this);
     starLabel_->setObjectName("sidebarTitleStar");
-    addButton_ = new QPushButton(QString::fromUtf8("+"), this);
+    addButton_ = new IconButton(QString::fromUtf8("+"), this);
     addButton_->setObjectName("sidebarAddButton");
     addButton_->setFixedSize(28, 28);
     addButton_->setToolTip(tr("Nueva nota"));
     connect(addButton_, &QPushButton::clicked, this,
             [this] { emit createNoteRequested(rootFolder_); });
 
-    collapseButton_ = new QPushButton(QString::fromUtf8("«"), this);
+    collapseButton_ = new IconButton(QString::fromUtf8("«"), this);
     collapseButton_->setObjectName("sidebarCollapseButton");
     collapseButton_->setFixedSize(28, 28);
     collapseButton_->setToolTip(tr("Ocultar barra lateral"));
@@ -76,6 +87,7 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     newSpaceButton_ = new QPushButton(tr("+ Nuevo espacio"), this);
     newSpaceButton_->setObjectName("sidebarLinkButton");
     newSpaceButton_->setFlat(true);
+    newSpaceButton_->setCursor(Qt::PointingHandCursor);
     connect(newSpaceButton_, &QPushButton::clicked, this,
             [this] { emit createSubfolderRequested(rootFolder_); });
 
@@ -93,9 +105,9 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     // al borde izquierdo del sidebar.
     iconRow->setContentsMargins(12, 4, 12, 8);
     iconRow->setSpacing(8);
-    auto* settingsButton = new QPushButton(QString::fromUtf8("⚙"), this);
-    auto* shortcutsButton = new QPushButton(QString::fromUtf8("⌨"), this);
-    auto* helpButton = new QPushButton(QString::fromUtf8("?"), this);
+    auto* settingsButton = new IconButton(QString::fromUtf8("⚙"), this);
+    auto* shortcutsButton = new IconButton(QString::fromUtf8("⌨"), this);
+    auto* helpButton = new IconButton(QString::fromUtf8("?"), this);
     for (QPushButton* button : {settingsButton, shortcutsButton, helpButton}) {
         button->setObjectName("sidebarIconButton");
         button->setFixedSize(28, 28);
@@ -127,10 +139,10 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     auto* railLayout = new QVBoxLayout(collapsedRail_);
     railLayout->setContentsMargins(0, 8, 0, 8);
     railLayout->setSpacing(8);
-    auto* railAddButton = new QPushButton(QString::fromUtf8("+"), this);
-    auto* railSettingsButton = new QPushButton(QString::fromUtf8("⚙"), this);
-    auto* railShortcutsButton = new QPushButton(QString::fromUtf8("⌨"), this);
-    auto* railHelpButton = new QPushButton(QString::fromUtf8("?"), this);
+    auto* railAddButton = new IconButton(QString::fromUtf8("+"), this);
+    auto* railSettingsButton = new IconButton(QString::fromUtf8("⚙"), this);
+    auto* railShortcutsButton = new IconButton(QString::fromUtf8("⌨"), this);
+    auto* railHelpButton = new IconButton(QString::fromUtf8("?"), this);
     railAddButton->setObjectName("sidebarAddButton");
     railAddButton->setToolTip(tr("Nueva nota"));
     for (QPushButton* button : {railSettingsButton, railShortcutsButton, railHelpButton}) {
@@ -156,6 +168,14 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     layout->addWidget(expandedContent_, 1);
     layout->addWidget(collapsedRail_, 1);
 
+    widthAnimation_ = new QVariantAnimation(this);
+    widthAnimation_->setDuration(kWidthAnimationMs);
+    widthAnimation_->setEasingCurve(QEasingCurve::OutCubic);
+    connect(widthAnimation_, &QVariantAnimation::valueChanged, this,
+            [this](const QVariant& value) { applyWidth(value.toInt()); });
+    connect(widthAnimation_, &QVariantAnimation::finished, this,
+            &SidebarWidget::finishWidthAnimation);
+
     rebuildTags();
     setMinimumWidth(kExpandedMinWidth);
 }
@@ -169,28 +189,57 @@ void SidebarWidget::refreshTags() {
     rebuildTags();
 }
 
-void SidebarWidget::setCollapsed(bool collapsed) {
+void SidebarWidget::setCollapsed(bool collapsed, bool animated) {
     if (collapsed_ == collapsed) return;
     collapsed_ = collapsed;
-
-    titleLabel_->setVisible(!collapsed);
-    starLabel_->setVisible(!collapsed);
-    addButton_->setVisible(!collapsed);
-    expandedContent_->setVisible(!collapsed);
-    collapsedRail_->setVisible(collapsed);
 
     collapseButton_->setText(collapsed ? QString::fromUtf8("»") : QString::fromUtf8("«"));
     collapseButton_->setToolTip(collapsed ? tr("Mostrar barra lateral")
                                            : tr("Ocultar barra lateral"));
 
-    // Fijar ancho mín=máx obliga al splitter a respetar la franja angosta;
-    // liberarlo (mín normal, máx sin límite) hace que el splitter vuelva a
-    // agrandarla para cumplir el nuevo mínimo, sin que MainWindow tenga que
-    // saber nada de esto.
-    setMinimumWidth(collapsed ? kCollapsedWidth : kExpandedMinWidth);
-    setMaximumWidth(collapsed ? kCollapsedWidth : QWIDGETSIZE_MAX);
+    widthAnimation_->stop();
+
+    // Al volver a expandir se recupera el ancho que el usuario tenía (puede
+    // haberlo arrastrado desde el splitter), no uno fijo.
+    if (collapsed && isVisible()) expandedWidth_ = qMax(width(), kExpandedMinWidth);
+    const int target = collapsed ? kCollapsedWidth : expandedWidth_;
+
+    if (animated && isVisible()) {
+        widthAnimation_->setStartValue(width());
+        widthAnimation_->setEndValue(target);
+        widthAnimation_->start();
+    } else {
+        applyWidth(target);
+        finishWidthAnimation();
+    }
 
     emit collapsedChanged(collapsed);
+}
+
+void SidebarWidget::applyWidth(int width) {
+    const bool showContent = width >= kContentThreshold;
+    const bool showHeaderExtras = width >= kHeaderThreshold;
+
+    expandedContent_->setVisible(showContent);
+    collapsedRail_->setVisible(!showContent);
+    titleLabel_->setVisible(showHeaderExtras);
+    starLabel_->setVisible(showHeaderExtras);
+    addButton_->setVisible(showHeaderExtras);
+
+    setFixedWidth(width);
+    emit widthAnimated(width);
+}
+
+void SidebarWidget::finishWidthAnimation() {
+    // Colapsada queda fija (el splitter no la deja agrandar a mano); expandida
+    // vuelve a ser redimensionable. Se suelta primero el máximo para que
+    // nunca haya un mínimo mayor que el máximo.
+    if (collapsed_) {
+        setFixedWidth(kCollapsedWidth);
+        return;
+    }
+    setMaximumWidth(QWIDGETSIZE_MAX);
+    setMinimumWidth(kExpandedMinWidth);
 }
 
 void SidebarWidget::rebuildTags() {
@@ -209,6 +258,7 @@ void SidebarWidget::rebuildTags() {
         auto* tagButton = new QPushButton(QString::fromUtf8("# ") + it.key(), this);
         tagButton->setObjectName("sidebarTagButton");
         tagButton->setFlat(true);
+        tagButton->setCursor(Qt::PointingHandCursor);
         tagButton->setToolTip(tr("%n nota(s) con esta etiqueta", "", it.value()));
         connect(tagButton, &QPushButton::clicked, this,
                 [this, tag = it.key()] { emit tagActivated(tag); });

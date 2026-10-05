@@ -3,6 +3,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QStringList>
+#include <QStyleOption>
 
 namespace noctis::ui::theme {
 
@@ -13,16 +14,26 @@ struct Palette {
     const char* ink;
     const char* inkSoft;
     const char* border;
+    // Fondo de los elementos al pasar el mouse. En claro es más oscuro que el
+    // fondo (#ECEEE1 -> #B9BBB0); en oscuro, un poco más claro.
+    const char* hover;
 };
 
 // Claro: crema sobre tinta. Oscuro: la misma pareja invertida.
-constexpr Palette kLight{"#ECEEE1", "#F2F3E9", "#1D1D1B", "#4A4A46", "#1D1D1B"};
-constexpr Palette kDark{"#1B1C17", "#242520", "#ECEEE1", "#9A9B90", "#ECEEE1"};
+constexpr Palette kLight{"#ECEEE1", "#F2F3E9", "#1D1D1B", "#4A4A46", "#1D1D1B", "#B9BBB0"};
+constexpr Palette kDark{"#1B1C17", "#242520", "#ECEEE1", "#9A9B90", "#ECEEE1", "#2E2F29"};
 } // namespace
+
+QColor hoverColor(bool dark) {
+    return QColor((dark ? kDark : kLight).hover);
+}
 
 QString previewContentStylesheet(bool dark) {
     const Palette& p = dark ? kDark : kLight;
     return QString(R"(
+/* Qt deja <pre> sin ajuste de línea: un bloque de código con líneas largas (o
+   texto sangrado, que Markdown trata como código) se salía de la página. */
+pre { white-space: pre-wrap; }
 table { border-collapse: collapse; margin: 8px 0; }
 th, td { border: 1px solid %1; padding: 4px 10px; }
 th { background: %2; font-weight: 600; }
@@ -45,10 +56,23 @@ QIcon TabCloseButtonStyle::standardIcon(StandardPixmap standardIcon, const QStyl
     QPixmap pixmap(kSize, kSize);
     pixmap.fill(Qt::transparent);
 
+    // La pestaña activa se rellena con el color de tinta (texto en el color de
+    // fondo), así que la ✕ tiene que invertirse ahí o desaparece sobre ese
+    // relleno: antes usaba el mismo gris suave en todas y, en modo claro,
+    // quedaba casi ilegible sobre la pestaña oscura. QTabBar marca State_Selected
+    // en el botón de la pestaña activa.
+    const QStyle::State state = option ? option->state : QStyle::State_None;
+    const bool selectedTab = state.testFlag(QStyle::State_Selected);
+    const bool hovered =
+        state.testFlag(QStyle::State_MouseOver) || state.testFlag(QStyle::State_Raised);
+    // Al pasar el mouse el botón se rellena con el color de hover del tema
+    // (gris medio en claro, gris oscuro en oscuro): ahí vuelve la tinta normal.
+    const char* glyph = hovered ? p.ink : (selectedTab ? p.background : p.ink);
+
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    QPen pen{QColor(p.inkSoft)};
-    pen.setWidthF(1.6);
+    QPen pen{QColor(glyph)};
+    pen.setWidthF(1.8);
     pen.setCapStyle(Qt::RoundCap);
     painter.setPen(pen);
     painter.drawLine(kMargin, kMargin, kSize - kMargin, kSize - kMargin);
@@ -94,9 +118,11 @@ QMenuBar::item {
     padding: 4px 10px;
 }
 
+/* El resaltado de hover/selección de menús y pestañas lo pinta HoverFade con
+   fundido (QSS no puede interpolar estos estados): acá queda sin fondo ni
+   cambio de color para no pisarlo. */
 QMenuBar::item:selected {
-    background: %5;
-    color: %1;
+    background: transparent;
 }
 
 QMenu {
@@ -110,9 +136,7 @@ QMenu::item {
 }
 
 QMenu::item:selected {
-    background: %5;
-    color: %1;
-    border-radius: 6px;
+    background: transparent;
 }
 
 QMenu::separator {
@@ -165,6 +189,23 @@ QLineEdit {
     selection-color: %1;
 }
 
+/* --- Barra de búsqueda en la nota (Ctrl+F) ----------------------------- */
+
+#findBar {
+    background: %1;
+    border-bottom: 1px solid %5;
+}
+
+#findInput {
+    padding: 4px 12px;
+    border-radius: 14px;
+}
+
+#findCount {
+    color: %4;
+    font-size: 11px;
+}
+
 QListWidget {
     background: %2;
     border: 1px solid %5;
@@ -181,10 +222,6 @@ QListWidget::item {
 QListWidget::item:selected {
     background: %5;
     color: %1;
-}
-
-QListWidget::item:hover:!selected {
-    background: %1;
 }
 
 QSplitter::handle {
@@ -235,6 +272,10 @@ QScrollBar::handle {
     border-radius: 4px;
     min-height: 24px;
     min-width: 24px;
+}
+
+QScrollBar::handle:hover {
+    background: %4;
 }
 
 QScrollBar::add-line, QScrollBar::sub-line {
@@ -292,7 +333,7 @@ QStatusBar QLabel {
 
 #sidebarLinkButton:hover, #sidebarTagButton:hover {
     color: %3;
-    background: %2;
+    background: %6;
 }
 
 #sidebarEmptyHint {
@@ -301,20 +342,16 @@ QStatusBar QLabel {
     font-size: 11px;
 }
 
+/* Estos botones son IconButton y se dibujan a mano (fundido animado al pasar
+   el mouse, que QSS no puede hacer): el stylesheet solo aporta colores y el
+   peso de la fuente. */
 #sidebarAddButton, #sidebarIconButton, #sidebarCollapseButton, #breadcrumbBack,
-#breadcrumbMore {
-    background: transparent;
-    color: %3;
-    border: 1px solid %5;
-    border-radius: 13px;
-    padding: 0px;
+#breadcrumbMore, #findButton {
+    qproperty-borderColor: %5;
+    qproperty-fillColor: %5;
+    qproperty-textColor: %3;
+    qproperty-hoverTextColor: %1;
     font-weight: 400;
-}
-
-#sidebarAddButton:hover, #sidebarIconButton:hover, #sidebarCollapseButton:hover,
-#breadcrumbBack:hover, #breadcrumbMore:hover {
-    background: %5;
-    color: %1;
 }
 
 /* --- Fila del árbol ---------------------------------------------------- */
@@ -332,14 +369,18 @@ QStatusBar QLabel {
     color: #C97A3D;
 }
 
-TreeRowWidget[active="true"] {
+#treeRow {
+    qproperty-hoverColor: %6;
+}
+
+#treeRow[active="true"] {
     background: %5;
     border-radius: 8px;
 }
 
-TreeRowWidget[active="true"] #treeRowNumber,
-TreeRowWidget[active="true"] #treeRowIcon,
-TreeRowWidget[active="true"] #treeRowTitle {
+#treeRow[active="true"] #treeRowNumber,
+#treeRow[active="true"] #treeRowIcon,
+#treeRow[active="true"] #treeRowTitle {
     color: %1;
 }
 
@@ -374,13 +415,14 @@ QTabBar::tab:selected {
     font-weight: 600;
 }
 
-QTabBar::tab:hover:!selected {
-    color: %3;
-}
-
 QTabBar::close-button {
     subcontrol-position: right;
     padding: 2px;
+    border-radius: 4px;
+}
+
+QTabBar::close-button:hover {
+    background: %6;
 }
 
 /* --- Breadcrumb ------------------------------------------------------- */
@@ -443,7 +485,7 @@ QTabBar::close-button {
     font-weight: 700;
 }
 )")
-        .arg(p.background, p.panel, p.ink, p.inkSoft, p.border);
+        .arg(p.background, p.panel, p.ink, p.inkSoft, p.border, p.hover);
 }
 
 } // namespace noctis::ui::theme

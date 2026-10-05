@@ -5,7 +5,7 @@ if(POLICY CMP0135)
 endif()
 
 project(noctis
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "Editor de notas Markdown local-first"
     LANGUAGES CXX C
 )

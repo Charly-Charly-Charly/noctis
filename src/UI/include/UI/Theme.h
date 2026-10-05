@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QFont>
 #include <QProxyStyle>
 #include <QString>
@@ -12,6 +13,11 @@ QString stylesheet(bool dark);
 
 // Fuente monoespaciada con fallback, para setear en QApplication.
 QFont applicationFont();
+
+// Fondo de hover del tema (más oscuro que el fondo en claro, más claro en
+// oscuro). Lo leen los fundidos de HoverFade vía la propiedad de aplicación
+// "noctisHoverColor", que se actualiza al cambiar de tema.
+QColor hoverColor(bool dark);
 
 // Hoja de estilos para el HTML de la vista previa (tablas, etc.): QTextDocument
 // usa un subconjunto de CSS distinto al de la hoja de estilos QSS de arriba

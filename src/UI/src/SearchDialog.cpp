@@ -7,6 +7,8 @@
 
 #include <algorithm>
 
+#include "UI/HoverFade.h"
+
 namespace noctis::ui {
 
 namespace {
@@ -22,6 +24,7 @@ SearchDialog::SearchDialog(core::SearchService& searchService, QWidget* parent,
     queryEdit_ = new QLineEdit(this);
     queryEdit_->setPlaceholderText(tr("Título, contenido, etiqueta o archivo…"));
     resultsList_ = new QListWidget(this);
+    installListHoverFade(resultsList_);
 
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(queryEdit_);

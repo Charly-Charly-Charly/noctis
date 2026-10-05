@@ -14,6 +14,7 @@
 class QLabel;
 class QPushButton;
 class QVBoxLayout;
+class QVariantAnimation;
 
 namespace noctis::ui {
 
@@ -44,12 +45,18 @@ public:
     // Colapsada, la barra lateral queda como una mini franja de iconos
     // (nueva nota, ajustes, atajos, ayuda) en vez de desaparecer del todo:
     // siguen siendo accesibles con un solo click, y el botón para volver a
-    // agrandarla queda siempre a mano en el header.
-    void setCollapsed(bool collapsed);
+    // agrandarla queda siempre a mano en el header. El cambio de ancho es
+    // animado salvo animated=false (restaurar el estado al arrancar).
+    void setCollapsed(bool collapsed, bool animated = true);
     bool isCollapsed() const { return collapsed_; }
 
 signals:
     void collapsedChanged(bool collapsed);
+
+    // Ancho que la barra lateral quiere tener en cada paso de la animación:
+    // QSplitter no redistribuye el espacio solo cuando cambia el ancho fijo
+    // de un hijo, así que MainWindow lo traduce a setSizes().
+    void widthAnimated(int width);
     void noteActivated(const core::NoteId& id);
     void createNoteRequested(const core::Folder& targetFolder);
     void createSubfolderRequested(const core::Folder& parentFolder);
@@ -64,6 +71,8 @@ signals:
 
 private:
     void rebuildTags();
+    void applyWidth(int width);
+    void finishWidthAnimation();
 
     core::INoteRepository& repository_;
     core::TagService& tagService_;
@@ -90,6 +99,8 @@ private:
     QLabel* tagsLabel_ = nullptr;
     QWidget* tagsContainer_ = nullptr;
     QWidget* iconRowContainer_ = nullptr;
+    QVariantAnimation* widthAnimation_ = nullptr;
+    int expandedWidth_ = 260; // se recuerda al colapsar para volver al mismo ancho
     bool collapsed_ = false;
 };
 

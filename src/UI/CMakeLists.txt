@@ -31,6 +31,12 @@ add_executable(noctis WIN32
     include/UI/WelcomeScreen.h
     src/InsertTagDialog.cpp
     include/UI/InsertTagDialog.h
+    src/FindBar.cpp
+    include/UI/FindBar.h
+    src/IconButton.cpp
+    include/UI/IconButton.h
+    src/HoverFade.cpp
+    include/UI/HoverFade.h
     resources/noctis.qrc
 )
 

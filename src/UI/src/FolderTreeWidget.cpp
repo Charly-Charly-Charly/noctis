@@ -32,6 +32,7 @@ FolderTreeWidget::FolderTreeWidget(core::INoteRepository& repository,
       rootFolder_(std::move(rootFolder)) {
     setHeaderHidden(true);
     setIndentation(14);
+    setAnimated(true); // las carpetas se despliegan/pliegan con transición
     setContextMenuPolicy(Qt::CustomContextMenu);
 
     refresh();

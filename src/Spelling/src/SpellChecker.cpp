@@ -21,4 +21,9 @@ bool SpellChecker::isCorrect(const std::string& word) const {
     return !hunspell_ || hunspell_->spell(word);
 }
 
+std::vector<std::string> SpellChecker::suggest(const std::string& word) const {
+    if (!hunspell_) return {};
+    return hunspell_->suggest(word);
+}
+
 } // namespace noctis::spelling

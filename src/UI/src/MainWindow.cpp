@@ -23,6 +23,8 @@
 #include <QStatusBar>
 #include <QStyle>
 #include <QTabBar>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -36,6 +38,7 @@
 #include "Spelling/SpellChecker.h"
 #include "Sync/HttpSyncClient.h"
 #include "UI/BreadcrumbWidget.h"
+#include "UI/FindBar.h"
 #include "UI/FolderTreeWidget.h"
 #include "UI/HelpDialog.h"
 #include "UI/InsertTagDialog.h"
@@ -50,15 +53,6 @@
 #include "UI/WelcomeScreen.h"
 
 namespace noctis::ui {
-
-namespace {
-// Deben coincidir con lo que SidebarWidget se permite a sí mismo (min/max
-// width) al colapsar/expandir — ver SidebarWidget::setCollapsed. Cambiar el
-// ancho mínimo/máximo de un hijo no le garantiza a QSplitter que redistribuya
-// el espacio de inmediato; hay que pedírselo explícito con setSizes().
-constexpr int kSidebarCollapsedWidth = 48;
-constexpr int kSidebarExpandedWidth = 260;
-} // namespace
 
 MainWindow::MainWindow(AppContext context, QWidget* parent)
     : QMainWindow(parent), context_(std::move(context)) {
@@ -92,6 +86,13 @@ void MainWindow::setupLayout() {
     editor_->setSpellChecker(spellChecker_.get());
 
     preview_ = new PreviewWidget(this);
+
+    // Ctrl+rueda sobre cualquiera de los dos paneles: ambos hacen zoom juntos.
+    connect(editor_, &editor::EditorWidget::zoomStepRequested, this,
+            [this](int direction) { setZoomLevel(zoomLevel_ + direction); });
+    connect(preview_, &PreviewWidget::zoomStepRequested, this,
+            [this](int direction) { setZoomLevel(zoomLevel_ + direction); });
+    setZoomLevel(context_.settings.getInt("ui.zoomLevel").value_or(0));
 
     connect(sidebar_, &SidebarWidget::noteActivated, this, &MainWindow::openNote);
     connect(sidebar_, &SidebarWidget::createNoteRequested, this, &MainWindow::createNote);
@@ -178,6 +179,13 @@ void MainWindow::setupLayout() {
     connect(breadcrumb_, &BreadcrumbWidget::moreOptionsRequested, this,
             &MainWindow::showMoreOptionsMenu);
 
+    findBar_ = new FindBar(this);
+    connect(findBar_, &FindBar::queryChanged, this, &MainWindow::applyFindQuery);
+    connect(findBar_, &FindBar::nextRequested, this, [this] { findStep(/*backwards=*/false); });
+    connect(findBar_, &FindBar::previousRequested, this, [this] { findStep(/*backwards=*/true); });
+    connect(findBar_, &FindBar::closeRequested, this, &MainWindow::closeFindBar);
+    connect(editor_, &editor::EditorWidget::findResultChanged, findBar_, &FindBar::setMatchInfo);
+
     welcomeScreen_ = new WelcomeScreen(context_.repository, context_.recentsService, this);
     connect(welcomeScreen_, &WelcomeScreen::newNoteRequested, this,
             [this] { createNote(context_.rootFolder); });
@@ -193,6 +201,7 @@ void MainWindow::setupLayout() {
     contentLayout->setSpacing(0);
     contentLayout->addWidget(tabRow);
     contentLayout->addWidget(breadcrumb_);
+    contentLayout->addWidget(findBar_);
     contentLayout->addWidget(contentStack_, 1);
 
     mainSplitter_ = new QSplitter(this);
@@ -237,13 +246,18 @@ void MainWindow::setupMenus() {
 
     fileMenu->addSeparator();
 
-    QAction* searchAction = fileMenu->addAction(tr("&Buscar…"));
-    searchAction->setShortcuts({QKeySequence(tr("Ctrl+K")), QKeySequence(tr("Ctrl+F"))});
+    QAction* findAction = fileMenu->addAction(tr("Buscar en la &nota…"));
+    findAction->setShortcut(QKeySequence(QKeySequence::Find)); // Ctrl+F
+    connect(findAction, &QAction::triggered, this, &MainWindow::openFindBar);
+
+    QAction* searchAction = fileMenu->addAction(tr("&Buscar en todas las notas…"));
+    searchAction->setShortcut(QKeySequence(tr("Ctrl+K")));
     connect(searchAction, &QAction::triggered, this, &MainWindow::openSearchDialog);
 
     fileMenu->addSeparator();
 
     QAction* exportAction = fileMenu->addAction(tr("&Exportar…"));
+    exportAction->setShortcut(QKeySequence(tr("Ctrl+Shift+S")));
     connect(exportAction, &QAction::triggered, this, &MainWindow::exportCurrentNote);
 
     QAction* insertTagAction = fileMenu->addAction(tr("Insertar &etiqueta…"));
@@ -283,7 +297,8 @@ void MainWindow::setupMenus() {
 
     QAction* collapseSidebarAction = viewMenu->addAction(tr("Colapsar barra &lateral"));
     collapseSidebarAction->setCheckable(true);
-    connect(collapseSidebarAction, &QAction::toggled, sidebar_, &SidebarWidget::setCollapsed);
+    connect(collapseSidebarAction, &QAction::toggled, this,
+            [this](bool collapsed) { sidebar_->setCollapsed(collapsed); });
     // El botón "«"/"»" en la propia barra lateral es el control principal;
     // este ítem de menú solo se mantiene sincronizado con él en ambos
     // sentidos, para quien prefiera el menú o un atajo de teclado futuro.
@@ -291,16 +306,17 @@ void MainWindow::setupMenus() {
             &QAction::setChecked);
     connect(sidebar_, &SidebarWidget::collapsedChanged, this, [this](bool collapsed) {
         context_.settings.setBool("ui.sidebarCollapsed", collapsed);
-
-        // sidebar_->setMinimumWidth/setMaximumWidth (en SidebarWidget::setCollapsed)
-        // no le garantiza a QSplitter que redistribuya el espacio ya mismo:
-        // hay que pedírselo explícito, o el área de trabajo no crece para
-        // ocupar lo que la barra lateral dejó libre.
-        int total = mainSplitter_->width();
-        int sidebarWidth = collapsed ? kSidebarCollapsedWidth : kSidebarExpandedWidth;
-        mainSplitter_->setSizes({sidebarWidth, total - sidebarWidth});
     });
-    collapseSidebarAction->setChecked(context_.settings.getBool("ui.sidebarCollapsed").value_or(false));
+    // Cambiar el ancho fijo de un hijo no le garantiza a QSplitter que
+    // redistribuya el espacio ya mismo: hay que pedírselo explícito en cada
+    // paso de la animación, o el área de trabajo no crece/achica con ella.
+    connect(sidebar_, &SidebarWidget::widthAnimated, this, [this](int sidebarWidth) {
+        mainSplitter_->setSizes({sidebarWidth, qMax(1, mainSplitter_->width() - sidebarWidth)});
+    });
+    // Restaurar el estado de la sesión anterior sin animar.
+    if (context_.settings.getBool("ui.sidebarCollapsed").value_or(false)) {
+        sidebar_->setCollapsed(true, /*animated=*/false);
+    }
 
     QAction* wordWrapAction = viewMenu->addAction(tr("Ajuste de &línea"));
     wordWrapAction->setCheckable(true);
@@ -311,13 +327,30 @@ void MainWindow::setupMenus() {
     });
     wordWrapAction->setChecked(context_.settings.getBool("editor.wordWrap").value_or(false));
 
+    viewMenu->addSeparator();
+
+    // QKeySequence::ZoomIn es "Ctrl++"; se añade "Ctrl+=" porque en muchos
+    // teclados el "+" exige Shift y la gente pulsa la tecla "=" a secas.
+    QAction* zoomInAction = viewMenu->addAction(tr("&Acercar"));
+    zoomInAction->setShortcuts({QKeySequence(QKeySequence::ZoomIn), QKeySequence(tr("Ctrl+="))});
+    connect(zoomInAction, &QAction::triggered, this, [this] { setZoomLevel(zoomLevel_ + 1); });
+
+    QAction* zoomOutAction = viewMenu->addAction(tr("A&lejar"));
+    zoomOutAction->setShortcut(QKeySequence(QKeySequence::ZoomOut));
+    connect(zoomOutAction, &QAction::triggered, this, [this] { setZoomLevel(zoomLevel_ - 1); });
+
+    QAction* zoomResetAction = viewMenu->addAction(tr("&Restablecer zoom"));
+    zoomResetAction->setShortcut(QKeySequence(tr("Ctrl+0")));
+    connect(zoomResetAction, &QAction::triggered, this, [this] { setZoomLevel(0); });
+
     QMenu* accountMenu = menuBar()->addMenu(tr("&Cuenta"));
 
     QAction* loginAction = accountMenu->addAction(tr("&Iniciar sesión…"));
     connect(loginAction, &QAction::triggered, this, &MainWindow::openSyncLoginDialog);
 
     QAction* syncAction = accountMenu->addAction(tr("&Sincronizar ahora"));
-    syncAction->setShortcut(QKeySequence(tr("Ctrl+Shift+S")));
+    // Ctrl+Shift+S es Exportar; F5 es el atajo habitual de "actualizar".
+    syncAction->setShortcut(QKeySequence(tr("F5")));
     connect(syncAction, &QAction::triggered, this, &MainWindow::syncNow);
 }
 
@@ -364,6 +397,7 @@ void MainWindow::closeTab(int index) {
     }
 
     if (openNoteIds_.empty()) {
+        closeFindBar();
         currentNoteId_.clear();
         editor_->clear();
         preview_->setMarkdownSource(QString());
@@ -620,14 +654,27 @@ void MainWindow::setViewMode(ViewMode mode) {
     if (mode != ViewMode::Editor) {
         updatePreview(editor_->toPlainText());
     }
+
+    // Una búsqueda abierta sigue a la vista que quedó visible.
+    if (findBar_ && findBar_->isVisible()) applyFindQuery(findBar_->query());
 }
 
 void MainWindow::toggleDarkMode(bool enabled) {
     darkMode_ = enabled;
     qApp->setStyleSheet(theme::stylesheet(darkMode_));
+    qApp->setProperty("noctisHoverColor", theme::hoverColor(darkMode_));
     context_.settings.setBool("theme.darkMode", enabled);
     applyTabBarStyle();
     preview_->setDarkMode(darkMode_);
+}
+
+void MainWindow::setZoomLevel(int level) {
+    constexpr int kMinZoom = -4; // 10pt base -> 6pt
+    constexpr int kMaxZoom = 24; // -> 34pt
+    zoomLevel_ = qBound(kMinZoom, level, kMaxZoom);
+    editor_->setZoomLevel(zoomLevel_);
+    preview_->setZoomLevel(zoomLevel_);
+    context_.settings.setInt("ui.zoomLevel", zoomLevel_);
 }
 
 void MainWindow::applyTabBarStyle() {
@@ -703,6 +750,80 @@ void MainWindow::openSearchDialog() {
     dialog.exec();
 }
 
+void MainWindow::openFindBar() {
+    if (currentNoteId_.empty()) return;
+
+    // Como en otros editores: si hay una frase seleccionada en una sola línea,
+    // se usa como texto a buscar.
+    QString seed;
+    if (viewMode_ != ViewMode::Preview) {
+        QString selected = editor_->textCursor().selectedText();
+        if (!selected.isEmpty() && !selected.contains(QChar::ParagraphSeparator)) seed = selected;
+    }
+    findBar_->activate(seed);
+    applyFindQuery(findBar_->query());
+}
+
+void MainWindow::closeFindBar() {
+    if (!findBar_->isVisible()) return;
+    findBar_->hide();
+    editor_->clearFind();
+    QTextCursor cleared = preview_->textCursor();
+    cleared.clearSelection();
+    preview_->setTextCursor(cleared);
+    (viewMode_ == ViewMode::Preview ? static_cast<QWidget*>(preview_)
+                                    : static_cast<QWidget*>(editor_))->setFocus();
+}
+
+void MainWindow::applyFindQuery(const QString& query) {
+    if (viewMode_ == ViewMode::Preview) {
+        editor_->clearFind();
+        findInPreview(query, /*backwards=*/false, /*restart=*/true);
+    } else {
+        editor_->setFindQuery(query);
+    }
+}
+
+void MainWindow::findStep(bool backwards) {
+    if (findBar_->query().isEmpty()) return;
+    if (viewMode_ == ViewMode::Preview) {
+        findInPreview(findBar_->query(), backwards, /*restart=*/false);
+    } else {
+        editor_->findNext(backwards);
+    }
+}
+
+void MainWindow::findInPreview(const QString& query, bool backwards, bool restart) {
+    QTextCursor cursor = preview_->textCursor();
+    if (query.isEmpty()) {
+        cursor.clearSelection();
+        preview_->setTextCursor(cursor);
+        findBar_->setMatchInfo(0, 0);
+        return;
+    }
+    if (restart) {
+        // Seguir escribiendo no debe saltar a otra coincidencia: se vuelve a
+        // buscar desde el inicio de la actual.
+        cursor.setPosition(cursor.selectionStart());
+        preview_->setTextCursor(cursor);
+    }
+
+    const QTextDocument::FindFlags flags =
+        backwards ? QTextDocument::FindBackward : QTextDocument::FindFlags();
+    bool found = preview_->find(query, flags);
+    if (!found) { // dar la vuelta al documento
+        QTextCursor wrap = preview_->textCursor();
+        wrap.movePosition(backwards ? QTextCursor::End : QTextCursor::Start);
+        preview_->setTextCursor(wrap);
+        found = preview_->find(query, flags);
+    }
+
+    int total = 0;
+    QTextCursor match(preview_->document());
+    while (!(match = preview_->document()->find(query, match)).isNull()) ++total;
+    findBar_->setMatchInfo(0, found ? total : 0);
+}
+
 void MainWindow::exportCurrentNote() {
     if (currentNoteId_.empty()) {
         QMessageBox::information(this, tr("Exportar"), tr("Abre una nota primero."));
@@ -742,37 +863,15 @@ void MainWindow::exportCurrentNote() {
 }
 
 void MainWindow::exportToPdf(const QString& path) {
-    // Reutiliza el mismo QTextDocument de la vista previa (MD4C ya
-    // convirtió el Markdown a HTML ahí); PDF es un detalle de impresión de
-    // Qt, no una responsabilidad del Core, así que se resuelve aquí.
-
-    // "Cascadia Mono" (primera de la lista de applicationFont()) es una
-    // fuente variable: Windows la expone con instancias con nombre propio
-    // para los pesos livianos (Light, SemiBold, SemiLight...) pero sin una
-    // "Cascadia Mono Bold" separada, y el motor de fuentes de Qt para
-    // embeber/imprimir PDF no siempre resuelve bien cuál instancia es la
-    // "Regular" — termina usando una más gruesa aunque en pantalla se vea
-    // normal. Para el PDF se fuerza Consolas, una fuente estática de Windows
-    // con caras Regular/Bold bien definidas, sin esa ambigüedad. Se fija
-    // ANTES de parsear el HTML (setMarkdownSource): hacerlo después no
-    // actualiza retroactivamente el peso ya grabado en cada fragmento de
-    // texto durante el parseo.
-    QFont exportFont = preview_->font();
-    exportFont.setFamilies({"Consolas", "Courier New"});
-    exportFont.setWeight(QFont::Normal);
-    preview_->document()->setDefaultFont(exportFont);
-    preview_->setMarkdownSource(editor_->toPlainText());
+    // El PDF se imprime desde un documento propio (no el de la vista previa):
+    // así no depende del estado de la pantalla (zoom, tema oscuro, ancho del
+    // panel) ni hace falta cambiar y restaurar la fuente del preview.
+    // PDF es un detalle de impresión de Qt, no una responsabilidad del Core.
+    std::unique_ptr<QTextDocument> document = preview_->createPrintDocument(editor_->toPlainText());
 
     QPdfWriter pdfWriter(path);
     pdfWriter.setResolution(300);
-    preview_->document()->print(&pdfWriter);
-
-    // La fuente de arriba es solo para el PDF: se restaura la normal para
-    // que la vista previa en pantalla no quede pegada a Consolas.
-    QFont screenFont = preview_->font();
-    screenFont.setWeight(QFont::Normal);
-    preview_->document()->setDefaultFont(screenFont);
-    preview_->setMarkdownSource(editor_->toPlainText());
+    document->print(&pdfWriter);
 }
 
 bool MainWindow::ensureSyncService() {

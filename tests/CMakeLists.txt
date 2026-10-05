@@ -10,3 +10,8 @@ FetchContent_MakeAvailable(googletest)
 
 add_subdirectory(Core)
 add_subdirectory(Filesystem)
+
+if(NOCTIS_BUILD_UI)
+    add_subdirectory(Editor)
+    add_subdirectory(Ui)
+endif()

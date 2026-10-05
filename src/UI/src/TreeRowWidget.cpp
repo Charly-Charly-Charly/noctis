@@ -1,21 +1,40 @@
 #include "UI/TreeRowWidget.h"
 
 #include <QContextMenuEvent>
+#include <QEasingCurve>
+#include <QEnterEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QPropertyAnimation>
 #include <QStyle>
 
 namespace noctis::ui {
 
+namespace {
+constexpr int kHoverDurationMs = 140;
+constexpr qreal kRowRadius = 8.0;
+} // namespace
+
 TreeRowWidget::TreeRowWidget(const QString& number, const QString& icon, const QString& title,
                               Kind kind, QWidget* parent)
     : QWidget(parent) {
-    // Sin esto, el "background" del QSS para TreeRowWidget[active="true"]
+    // Selector por id y no por nombre de clase: Qt compara el nombre
+    // calificado ("noctis::ui::TreeRowWidget"), así que un selector
+    // "TreeRowWidget" a secas no es confiable dentro de un namespace.
+    setObjectName("treeRow");
+
+    // Sin esto, el "background" del QSS para #treeRow[active="true"]
     // simplemente no se pinta: los QWidget personalizados no aplican el
     // fondo del stylesheet por defecto.
     setAttribute(Qt::WA_StyledBackground, true);
     setProperty("active", false);
+    setCursor(Qt::PointingHandCursor);
+
+    hoverAnimation_ = new QPropertyAnimation(this, "hoverProgress", this);
+    hoverAnimation_->setDuration(kHoverDurationMs);
+    hoverAnimation_->setEasingCurve(QEasingCurve::OutCubic);
 
     auto* numberLabel = new QLabel(number, this);
     numberLabel->setObjectName("treeRowNumber");
@@ -53,6 +72,50 @@ void TreeRowWidget::setActive(bool active) {
 
 void TreeRowWidget::setDirty(bool dirty) {
     dotLabel_->setVisible(dirty);
+}
+
+void TreeRowWidget::setHoverProgress(qreal progress) {
+    hoverProgress_ = progress;
+    update();
+}
+
+void TreeRowWidget::setHoverColor(const QColor& color) {
+    hoverColor_ = color;
+    update();
+}
+
+void TreeRowWidget::enterEvent(QEnterEvent* event) {
+    animateHoverTo(1.0);
+    QWidget::enterEvent(event);
+}
+
+void TreeRowWidget::leaveEvent(QEvent* event) {
+    animateHoverTo(0.0);
+    QWidget::leaveEvent(event);
+}
+
+void TreeRowWidget::animateHoverTo(qreal target) {
+    hoverAnimation_->stop();
+    hoverAnimation_->setStartValue(hoverProgress_);
+    hoverAnimation_->setEndValue(target);
+    hoverAnimation_->start();
+}
+
+void TreeRowWidget::paintEvent(QPaintEvent* event) {
+    // El fondo de QSS (fila activa) ya se pintó antes de llegar acá; el
+    // resaltado de hover va encima y debajo de los labels, que son
+    // transparentes. La fila activa ya tiene su propio color: no se tiñe.
+    QWidget::paintEvent(event);
+    if (hoverProgress_ <= 0.0 || property("active").toBool()) return;
+
+    QColor tint = hoverColor_;
+    tint.setAlphaF(tint.alphaF() * hoverProgress_);
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(tint);
+    painter.drawRoundedRect(rect(), kRowRadius, kRowRadius);
 }
 
 void TreeRowWidget::mousePressEvent(QMouseEvent* event) {

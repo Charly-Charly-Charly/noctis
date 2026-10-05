@@ -6,6 +6,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include "UI/HoverFade.h"
+
 namespace noctis::ui {
 
 namespace {
@@ -35,6 +37,7 @@ WelcomeScreen::WelcomeScreen(core::INoteRepository& repository,
 
     recentsList_ = new QListWidget(this);
     recentsList_->setObjectName("welcomeRecentsList");
+    installListHoverFade(recentsList_);
     connect(recentsList_, &QListWidget::itemActivated, this, [this](QListWidgetItem* item) {
         emit noteSelected(item->data(kIdRole).toString().toStdString());
     });
