@@ -136,8 +136,10 @@ TEST(UpdateChecker, ReportsNewerRelease) {
     EXPECT_EQ(result.version, "0.3.0");
     EXPECT_EQ(result.url.scheme(), "https");
     // Se identifica con la versión y pide el formato JSON de GitHub.
-    EXPECT_TRUE(server.request().contains("User-Agent: Noctis/0.2.0"));
-    EXPECT_TRUE(server.request().contains("application/vnd.github+json"));
+    // Los nombres de cabecera no distinguen mayúsculas y según la versión de Qt salen en minúscula.
+    const QByteArray headers = server.request().toLower();
+    EXPECT_TRUE(headers.contains("user-agent: noctis/0.2.0"));
+    EXPECT_TRUE(headers.contains("application/vnd.github+json"));
 }
 
 TEST(UpdateChecker, ReportsUpToDateForSameOrOlderRelease) {
