@@ -13,7 +13,8 @@
 namespace noctis::ui {
 
 SettingsDialog::SettingsDialog(core::ISettingsStore& settings, bool darkModeEnabled, int tabWidth,
-                                const QString& notesRootPath, QWidget* parent)
+                                const QString& notesRootPath, bool autoCheckUpdates,
+                                const QString& appVersion, QWidget* parent)
     : QDialog(parent), settings_(settings) {
     setWindowTitle(tr("Ajustes"));
     setMinimumWidth(380);
@@ -56,11 +57,28 @@ SettingsDialog::SettingsDialog(core::ISettingsStore& settings, bool darkModeEnab
     serverLabel->setWordWrap(true);
     serverLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
+    auto* autoCheckBox = new QCheckBox(tr("Buscar al iniciar"), this);
+    autoCheckBox->setToolTip(tr("Consulta una vez al día la última versión publicada en GitHub. "
+                                "No envía datos personales."));
+    autoCheckBox->setChecked(autoCheckUpdates);
+    connect(autoCheckBox, &QCheckBox::toggled, this, &SettingsDialog::autoCheckUpdatesToggled);
+
+    auto* checkNowButton = new QPushButton(tr("Buscar ahora"), this);
+    connect(checkNowButton, &QPushButton::clicked, this, &SettingsDialog::checkUpdatesNowRequested);
+
+    auto* updatesRow = new QWidget(this);
+    auto* updatesLayout = new QHBoxLayout(updatesRow);
+    updatesLayout->setContentsMargins(0, 0, 0, 0);
+    updatesLayout->addWidget(autoCheckBox, 1);
+    updatesLayout->addWidget(checkNowButton);
+
     auto* form = new QFormLayout();
     form->addRow(tr("Apariencia"), darkModeCheck_);
     form->addRow(tr("Tabulación (espacios)"), tabWidthSpin_);
     form->addRow(tr("Carpeta de notas"), notesPathRow);
     form->addRow(tr("Servidor de sincronización"), serverLabel);
+    form->addRow(tr("Actualizaciones"), updatesRow);
+    form->addRow(tr("Versión"), new QLabel(appVersion, this));
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);

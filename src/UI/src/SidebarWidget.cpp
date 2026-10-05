@@ -9,6 +9,7 @@
 
 #include "UI/FolderTreeWidget.h"
 #include "UI/IconButton.h"
+#include "UI/Icons.h"
 
 namespace noctis::ui {
 
@@ -41,16 +42,16 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     auto* headerRow = new QHBoxLayout();
     titleLabel_ = new QLabel(tr("NOCTIS"), this);
     titleLabel_->setObjectName("sidebarTitle");
-    starLabel_ = new QLabel(QString::fromUtf8(" ★"), this);
+    starLabel_ = new IconLabel(QStringLiteral("star"), 12, this);
     starLabel_->setObjectName("sidebarTitleStar");
-    addButton_ = new IconButton(QString::fromUtf8("+"), this);
+    addButton_ = makeIconButton(QStringLiteral("add"), this);
     addButton_->setObjectName("sidebarAddButton");
     addButton_->setFixedSize(28, 28);
     addButton_->setToolTip(tr("Nueva nota"));
     connect(addButton_, &QPushButton::clicked, this,
             [this] { emit createNoteRequested(rootFolder_); });
 
-    collapseButton_ = new IconButton(QString::fromUtf8("«"), this);
+    collapseButton_ = makeIconButton(QStringLiteral("collapse"), this);
     collapseButton_->setObjectName("sidebarCollapseButton");
     collapseButton_->setFixedSize(28, 28);
     collapseButton_->setToolTip(tr("Ocultar barra lateral"));
@@ -105,9 +106,9 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     // al borde izquierdo del sidebar.
     iconRow->setContentsMargins(12, 4, 12, 8);
     iconRow->setSpacing(8);
-    auto* settingsButton = new IconButton(QString::fromUtf8("⚙"), this);
-    auto* shortcutsButton = new IconButton(QString::fromUtf8("⌨"), this);
-    auto* helpButton = new IconButton(QString::fromUtf8("?"), this);
+    auto* settingsButton = makeIconButton(QStringLiteral("settings"), this);
+    auto* shortcutsButton = makeIconButton(QStringLiteral("keyboard"), this);
+    auto* helpButton = makeIconButton(QStringLiteral("help"), this);
     for (QPushButton* button : {settingsButton, shortcutsButton, helpButton}) {
         button->setObjectName("sidebarIconButton");
         button->setFixedSize(28, 28);
@@ -139,10 +140,10 @@ SidebarWidget::SidebarWidget(core::INoteRepository& repository,
     auto* railLayout = new QVBoxLayout(collapsedRail_);
     railLayout->setContentsMargins(0, 8, 0, 8);
     railLayout->setSpacing(8);
-    auto* railAddButton = new IconButton(QString::fromUtf8("+"), this);
-    auto* railSettingsButton = new IconButton(QString::fromUtf8("⚙"), this);
-    auto* railShortcutsButton = new IconButton(QString::fromUtf8("⌨"), this);
-    auto* railHelpButton = new IconButton(QString::fromUtf8("?"), this);
+    auto* railAddButton = makeIconButton(QStringLiteral("add"), this);
+    auto* railSettingsButton = makeIconButton(QStringLiteral("settings"), this);
+    auto* railShortcutsButton = makeIconButton(QStringLiteral("keyboard"), this);
+    auto* railHelpButton = makeIconButton(QStringLiteral("help"), this);
     railAddButton->setObjectName("sidebarAddButton");
     railAddButton->setToolTip(tr("Nueva nota"));
     for (QPushButton* button : {railSettingsButton, railShortcutsButton, railHelpButton}) {
@@ -193,7 +194,7 @@ void SidebarWidget::setCollapsed(bool collapsed, bool animated) {
     if (collapsed_ == collapsed) return;
     collapsed_ = collapsed;
 
-    collapseButton_->setText(collapsed ? QString::fromUtf8("»") : QString::fromUtf8("«"));
+    collapseButton_->setIconName(collapsed ? QStringLiteral("expand") : QStringLiteral("collapse"));
     collapseButton_->setToolTip(collapsed ? tr("Mostrar barra lateral")
                                            : tr("Ocultar barra lateral"));
 

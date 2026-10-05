@@ -1,5 +1,18 @@
 <RCC>
     <qresource prefix="/">
         <file>logo.png</file>
+        <file alias="icons/add.svg">icons/add.svg</file>
+        <file alias="icons/collapse.svg">icons/collapse.svg</file>
+        <file alias="icons/expand.svg">icons/expand.svg</file>
+        <file alias="icons/settings.svg">icons/settings.svg</file>
+        <file alias="icons/keyboard.svg">icons/keyboard.svg</file>
+        <file alias="icons/help.svg">icons/help.svg</file>
+        <file alias="icons/arrow_back.svg">icons/arrow_back.svg</file>
+        <file alias="icons/more_vert.svg">icons/more_vert.svg</file>
+        <file alias="icons/arrow_up.svg">icons/arrow_up.svg</file>
+        <file alias="icons/arrow_down.svg">icons/arrow_down.svg</file>
+        <file alias="icons/close.svg">icons/close.svg</file>
+        <file alias="icons/star.svg">icons/star.svg</file>
+        <file alias="icons/history.svg">icons/history.svg</file>
     </qresource>
 </RCC>

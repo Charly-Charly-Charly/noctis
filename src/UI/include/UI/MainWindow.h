@@ -35,6 +35,10 @@ namespace noctis::spelling {
 class SpellChecker;
 }
 
+namespace noctis::updates {
+class UpdateChecker;
+}
+
 namespace noctis::ui {
 
 class SidebarWidget;
@@ -106,6 +110,16 @@ private:
     void updateStatusBar();
     void applyTabBarStyle();
 
+    // Detección de actualizaciones (consulta el último release de GitHub).
+    // Automática: al iniciar, como máximo una vez al día y solo si está
+    // activada en Ajustes. Manual: Ayuda > Buscar actualizaciones.
+    void setupUpdates();
+    void maybeCheckForUpdates();
+    void checkForUpdates(bool manual);
+    void showUpdateNotice(const QString& version, const QString& url);
+    void hideUpdateNotice();
+    void openAboutDialog();
+
     // Zoom compartido por editor y vista previa. `level` es relativo al
     // tamaño de fuente base y se acota a [kMinZoom, kMaxZoom].
     void setZoomLevel(int level);
@@ -128,6 +142,12 @@ private:
     QLabel* statusSaveLabel_ = nullptr;
     QLabel* statusCountsLabel_ = nullptr;
     QLabel* statusFormatLabel_ = nullptr;
+    QWidget* updateNotice_ = nullptr;
+    QLabel* updateNoticeLabel_ = nullptr;
+    updates::UpdateChecker* updateChecker_ = nullptr;
+    QString availableUpdateVersion_;
+    QString availableUpdateUrl_;
+    bool manualUpdateCheck_ = false;
     QGraphicsOpacityEffect* contentOpacity_ = nullptr;
     std::vector<core::NoteId> openNoteIds_;
     std::vector<core::NoteId> closedNoteIds_; // pila para Ctrl+Shift+T: el último cerrado, primero en volver

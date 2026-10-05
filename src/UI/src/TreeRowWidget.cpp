@@ -10,6 +10,8 @@
 #include <QPropertyAnimation>
 #include <QStyle>
 
+#include "UI/Icons.h"
+
 namespace noctis::ui {
 
 namespace {
@@ -54,7 +56,8 @@ TreeRowWidget::TreeRowWidget(const QString& number, const QString& icon, const Q
     layout->setSpacing(6);
     layout->addWidget(numberLabel);
     if (!icon.isEmpty()) {
-        auto* iconLabel = new QLabel(icon, this);
+        // `icon` es el nombre de un ícono de ":/icons/".
+        auto* iconLabel = new IconLabel(icon, 12, this);
         iconLabel->setObjectName("treeRowIcon");
         iconLabel->setFixedWidth(18);
         layout->addWidget(iconLabel);

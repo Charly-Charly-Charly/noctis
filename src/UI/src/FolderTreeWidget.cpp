@@ -105,13 +105,13 @@ void FolderTreeWidget::refresh() {
 }
 
 void FolderTreeWidget::populateSpecialSections() {
-    auto* favoritesSection = makeSectionItem(nullptr, 1, QString::fromUtf8("★"), tr("Favoritos"));
+    auto* favoritesSection = makeSectionItem(nullptr, 1, QStringLiteral("star"), tr("Favoritos"));
     int favPos = 1;
     for (const auto& id : favoritesService_.listFavorites()) {
         if (auto note = repository_.find(id)) makeNoteItem(favoritesSection, favPos++, *note);
     }
 
-    auto* recentsSection = makeSectionItem(nullptr, 2, QString::fromUtf8("↺"), tr("Recientes"));
+    auto* recentsSection = makeSectionItem(nullptr, 2, QStringLiteral("history"), tr("Recientes"));
     int recPos = 1;
     for (const auto& id : recentsService_.listRecents()) {
         if (auto note = repository_.find(id)) makeNoteItem(recentsSection, recPos++, *note);

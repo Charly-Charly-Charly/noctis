@@ -35,6 +35,8 @@ add_executable(noctis WIN32
     include/UI/FindBar.h
     src/IconButton.cpp
     include/UI/IconButton.h
+    src/Icons.cpp
+    include/UI/Icons.h
     src/HoverFade.cpp
     include/UI/HoverFade.h
     resources/noctis.qrc
@@ -60,8 +62,13 @@ target_link_libraries(noctis PRIVATE
     noctis_settings
     noctis_export
     noctis_editor
+    noctis_updates
     Qt6::Widgets
+    Qt6::Svg
 )
+
+# Versión del proyecto, para "Acerca de" y la detección de actualizaciones.
+target_compile_definitions(noctis PRIVATE NOCTIS_VERSION="${PROJECT_VERSION}")
 
 target_compile_features(noctis PUBLIC cxx_std_23)
 noctis_set_warnings(noctis)

@@ -24,17 +24,17 @@ FindBar::FindBar(QWidget* parent) : QWidget(parent) {
     countLabel_->setMinimumWidth(90);
     countLabel_->setAlignment(Qt::AlignCenter);
 
-    auto makeButton = [this](const QString& glyph, const QString& tooltip) {
-        auto* button = new IconButton(glyph, this);
+    auto makeButton = [this](const QString& iconName, const QString& tooltip) {
+        auto* button = makeIconButton(iconName, this);
         button->setObjectName("findButton");
         button->setFixedSize(24, 24);
         button->setToolTip(tooltip);
         button->setFocusPolicy(Qt::NoFocus); // el foco se queda en el campo de texto
         return button;
     };
-    auto* previousButton = makeButton(QString::fromUtf8("↑"), tr("Anterior (Shift+Enter)"));
-    auto* nextButton = makeButton(QString::fromUtf8("↓"), tr("Siguiente (Enter)"));
-    auto* closeButton = makeButton(QString::fromUtf8("✕"), tr("Cerrar (Esc)"));
+    auto* previousButton = makeButton(QStringLiteral("arrow_up"), tr("Anterior (Shift+Enter)"));
+    auto* nextButton = makeButton(QStringLiteral("arrow_down"), tr("Siguiente (Enter)"));
+    auto* closeButton = makeButton(QStringLiteral("close"), tr("Cerrar (Esc)"));
 
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(12, 6, 12, 6);

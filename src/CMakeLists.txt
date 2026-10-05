@@ -10,9 +10,10 @@ add_subdirectory(Export)
 add_subdirectory(Spelling)
 
 if(NOCTIS_BUILD_UI)
-    find_package(Qt6 QUIET COMPONENTS Widgets)
+    find_package(Qt6 QUIET COMPONENTS Widgets Network Svg)
     if(Qt6_FOUND)
         add_subdirectory(Editor)
+        add_subdirectory(Updates)
         add_subdirectory(UI)
     else()
         message(WARNING "Qt6 no encontrado: se omiten los targets Editor y UI. "

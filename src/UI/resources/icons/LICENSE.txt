@@ -1,0 +1,4 @@
+Los íconos de esta carpeta son "Material Icons" de Google
+(https://github.com/google/material-design-icons), distribuidos bajo la
+licencia Apache 2.0: https://www.apache.org/licenses/LICENSE-2.0
+Se usan sin modificaciones; la app los repinta del color del tema al dibujarlos.

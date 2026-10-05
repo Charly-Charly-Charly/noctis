@@ -298,6 +298,12 @@ QStatusBar QLabel {
     padding: 0px 8px;
 }
 
+#updateNoticeButton {
+    padding: 1px 12px;
+    border-radius: 10px;
+    font-size: 11px;
+}
+
 /* --- Sidebar --------------------------------------------------------- */
 
 #sidebar {

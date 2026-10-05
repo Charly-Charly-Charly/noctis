@@ -19,6 +19,8 @@ class QVariantAnimation;
 namespace noctis::ui {
 
 class FolderTreeWidget;
+class IconButton;
+class IconLabel;
 
 // Panel izquierdo completo: cabecera, árbol de notas y etiquetas reales
 // (agregadas recorriendo el vault, no un feature separado inventado).
@@ -85,9 +87,9 @@ private:
     // Título y "+" del header se esconden al colapsar (collapseButton_ no:
     // es lo único que queda visible ahí para poder volver a expandir).
     QLabel* titleLabel_ = nullptr;
-    QLabel* starLabel_ = nullptr;
+    IconLabel* starLabel_ = nullptr;
     QPushButton* addButton_ = nullptr;
-    QPushButton* collapseButton_ = nullptr;
+    IconButton* collapseButton_ = nullptr;
 
     // Contenido normal (árbol, etiquetas) vs. mini franja de iconos: se
     // togglean como bloque, uno visible por vez.

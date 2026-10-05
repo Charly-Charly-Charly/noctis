@@ -5,6 +5,8 @@
 #include <QPainter>
 #include <QPropertyAnimation>
 
+#include "UI/Icons.h"
+
 namespace noctis::ui {
 
 namespace {
@@ -24,6 +26,11 @@ IconButton::IconButton(const QString& text, QWidget* parent) : QPushButton(text,
     hoverAnimation_ = new QPropertyAnimation(this, "hoverProgress", this);
     hoverAnimation_->setDuration(kHoverDurationMs);
     hoverAnimation_->setEasingCurve(QEasingCurve::OutCubic);
+}
+
+void IconButton::setIconName(const QString& name) {
+    iconName_ = name;
+    update();
 }
 
 void IconButton::setHoverProgress(qreal progress) {
@@ -88,9 +95,21 @@ void IconButton::paintEvent(QPaintEvent*) {
     painter.setBrush(Qt::NoBrush);
     painter.drawRoundedRect(bounds, radius, radius);
 
-    painter.setPen(mix(textColor_, hoverTextColor_, t));
+    const QColor foreground = mix(textColor_, hoverTextColor_, t);
+    if (!iconName_.isEmpty()) {
+        const QPixmap icon = icons::pixmap(iconName_, foreground, iconSize_, devicePixelRatioF());
+        painter.drawPixmap((width() - iconSize_) / 2, (height() - iconSize_) / 2, icon);
+        return;
+    }
+    painter.setPen(foreground);
     painter.setFont(font());
     painter.drawText(rect(), Qt::AlignCenter, text());
+}
+
+IconButton* makeIconButton(const QString& iconName, QWidget* parent) {
+    auto* button = new IconButton(QString(), parent);
+    button->setIconName(iconName);
+    return button;
 }
 
 } // namespace noctis::ui

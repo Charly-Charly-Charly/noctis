@@ -19,12 +19,9 @@ constexpr qreal kPageWidth = 718;
 
 namespace {
 
+// La QApplication la crea main() (compartida con IconTests.cpp).
 QApplication& app() {
-    static int argc = 1;
-    static char name[] = "noctis_ui_tests";
-    static char* argv[] = {name, nullptr};
-    static QApplication application(argc, argv);
-    return application;
+    return *static_cast<QApplication*>(QCoreApplication::instance());
 }
 
 class PreviewPrintTest : public ::testing::Test {
@@ -114,6 +111,7 @@ TEST_F(PreviewPrintTest, DeeplyNestedTabIndentedListsWrap) {
 
 int main(int argc, char** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
+    QApplication application(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

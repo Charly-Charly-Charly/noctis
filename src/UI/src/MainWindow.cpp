@@ -4,6 +4,7 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QEasingCurve>
 #include <QFileDialog>
 #include <QGraphicsOpacityEffect>
@@ -16,6 +17,7 @@
 #include <QMessageBox>
 #include <QPdfWriter>
 #include <QPropertyAnimation>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSplitter>
@@ -26,9 +28,11 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <utility>
 #include <filesystem>
 #include <set>
 
@@ -37,6 +41,7 @@
 #include "Editor/EditorWidget.h"
 #include "Spelling/SpellChecker.h"
 #include "Sync/HttpSyncClient.h"
+#include "Updates/UpdateChecker.h"
 #include "UI/BreadcrumbWidget.h"
 #include "UI/FindBar.h"
 #include "UI/FolderTreeWidget.h"
@@ -65,6 +70,7 @@ MainWindow::MainWindow(AppContext context, QWidget* parent)
 
     setupLayout();
     setupMenus();
+    setupUpdates();
 }
 
 MainWindow::~MainWindow() = default;
@@ -352,6 +358,14 @@ void MainWindow::setupMenus() {
     // Ctrl+Shift+S es Exportar; F5 es el atajo habitual de "actualizar".
     syncAction->setShortcut(QKeySequence(tr("F5")));
     connect(syncAction, &QAction::triggered, this, &MainWindow::syncNow);
+
+    QMenu* helpMenu = menuBar()->addMenu(tr("A&yuda"));
+
+    QAction* checkUpdatesAction = helpMenu->addAction(tr("Buscar &actualizaciones…"));
+    connect(checkUpdatesAction, &QAction::triggered, this, [this] { checkForUpdates(true); });
+
+    QAction* aboutAction = helpMenu->addAction(tr("&Acerca de Noctis"));
+    connect(aboutAction, &QAction::triggered, this, &MainWindow::openAboutDialog);
 }
 
 void MainWindow::openNote(const core::NoteId& id) {
@@ -714,7 +728,13 @@ void MainWindow::openTagSearch(const QString& tag) {
 void MainWindow::openSettingsDialog() {
     int tabWidth = context_.settings.getInt("editor.tabWidth").value_or(4);
     SettingsDialog dialog(context_.settings, darkMode_, tabWidth,
-                           QString::fromStdString(context_.rootFolder.path.string()), this);
+                           QString::fromStdString(context_.rootFolder.path.string()),
+                           context_.settings.getBool("updates.autoCheck").value_or(true),
+                           QStringLiteral(NOCTIS_VERSION), this);
+    connect(&dialog, &SettingsDialog::autoCheckUpdatesToggled, this,
+            [this](bool enabled) { context_.settings.setBool("updates.autoCheck", enabled); });
+    connect(&dialog, &SettingsDialog::checkUpdatesNowRequested, this,
+            [this] { checkForUpdates(true); });
     connect(&dialog, &SettingsDialog::darkModeToggled, this, &MainWindow::toggleDarkMode);
     connect(&dialog, &SettingsDialog::tabWidthChanged, this, [this](int spaces) {
         context_.settings.setInt("editor.tabWidth", spaces);
@@ -727,6 +747,143 @@ void MainWindow::openSettingsDialog() {
                                           tr("Reinicia Noctis para terminar de aplicar el cambio."));
             });
     dialog.exec();
+}
+
+void MainWindow::setupUpdates() {
+    updateChecker_ = new updates::UpdateChecker(QStringLiteral(NOCTIS_VERSION),
+                                                 updates::UpdateChecker::defaultEndpoint(), this);
+
+    // Aviso discreto en la barra de estado, a la derecha.
+    updateNotice_ = new QWidget(this);
+    updateNotice_->setObjectName("updateNotice");
+    auto* noticeLayout = new QHBoxLayout(updateNotice_);
+    noticeLayout->setContentsMargins(0, 0, 4, 0);
+    noticeLayout->setSpacing(6);
+    updateNoticeLabel_ = new QLabel(updateNotice_);
+    auto* downloadButton = new QPushButton(tr("Descargar"), updateNotice_);
+    auto* skipButton = new QPushButton(tr("Omitir esta versión"), updateNotice_);
+    for (QPushButton* button : {downloadButton, skipButton}) {
+        button->setObjectName("updateNoticeButton");
+        button->setCursor(Qt::PointingHandCursor);
+    }
+    noticeLayout->addWidget(updateNoticeLabel_);
+    noticeLayout->addWidget(downloadButton);
+    noticeLayout->addWidget(skipButton);
+    statusBar()->insertPermanentWidget(0, updateNotice_);
+    updateNotice_->hide();
+
+    connect(downloadButton, &QPushButton::clicked, this,
+            [this] { QDesktopServices::openUrl(QUrl(availableUpdateUrl_)); });
+    connect(skipButton, &QPushButton::clicked, this, [this] {
+        context_.settings.setString("updates.skippedVersion", availableUpdateVersion_.toStdString());
+        hideUpdateNotice();
+    });
+
+    auto recordCheck = [this] {
+        context_.settings.setString("updates.lastCheck",
+                                    QDateTime::currentDateTime().toString(Qt::ISODate).toStdString());
+    };
+
+    connect(updateChecker_, &updates::UpdateChecker::updateAvailable, this,
+            [this, recordCheck](const QString& version, const QUrl& url) {
+                const bool manual = std::exchange(manualUpdateCheck_, false);
+                recordCheck();
+                context_.settings.setString("updates.pendingVersion", version.toStdString());
+                context_.settings.setString("updates.pendingUrl", url.toString().toStdString());
+
+                if (manual) {
+                    QMessageBox box(QMessageBox::Information, tr("Actualización disponible"),
+                                    tr("Noctis v%1 está disponible (tienes la v%2).")
+                                        .arg(version, QStringLiteral(NOCTIS_VERSION)),
+                                    QMessageBox::NoButton, this);
+                    QPushButton* download = box.addButton(tr("Descargar"), QMessageBox::AcceptRole);
+                    box.addButton(tr("Más tarde"), QMessageBox::RejectRole);
+                    box.exec();
+                    if (box.clickedButton() == download) QDesktopServices::openUrl(url);
+                    showUpdateNotice(version, url.toString());
+                    return;
+                }
+                // Una versión que el usuario ya descartó no vuelve a avisar sola.
+                const auto skipped = context_.settings.getString("updates.skippedVersion");
+                if (!skipped || QString::fromStdString(*skipped) != version) {
+                    showUpdateNotice(version, url.toString());
+                }
+            });
+    connect(updateChecker_, &updates::UpdateChecker::upToDate, this, [this, recordCheck] {
+        const bool manual = std::exchange(manualUpdateCheck_, false);
+        recordCheck();
+        context_.settings.setString("updates.pendingVersion", "");
+        context_.settings.setString("updates.pendingUrl", "");
+        hideUpdateNotice();
+        if (manual) {
+            QMessageBox::information(this, tr("Actualizaciones"),
+                                      tr("Tienes la última versión (v%1).")
+                                          .arg(QStringLiteral(NOCTIS_VERSION)));
+        }
+    });
+    connect(updateChecker_, &updates::UpdateChecker::failed, this, [this](const QString& reason) {
+        // Un fallo de red al iniciar no merece molestar; no se registra la
+        // consulta para reintentar en el próximo arranque.
+        if (!std::exchange(manualUpdateCheck_, false)) return;
+        QMessageBox::warning(this, tr("Actualizaciones"),
+                              tr("No se pudo comprobar si hay actualizaciones:\n%1").arg(reason));
+    });
+
+    // Un aviso pendiente de una consulta anterior sigue visible entre
+    // arranques, aunque hoy no toque volver a consultar.
+    const auto pendingVersion = context_.settings.getString("updates.pendingVersion");
+    const auto pendingUrl = context_.settings.getString("updates.pendingUrl");
+    const auto skippedVersion = context_.settings.getString("updates.skippedVersion");
+    if (pendingVersion && pendingUrl && !pendingVersion->empty() &&
+        updates::isNewerVersion(QString::fromStdString(*pendingVersion),
+                                QStringLiteral(NOCTIS_VERSION)) &&
+        (!skippedVersion || *skippedVersion != *pendingVersion)) {
+        showUpdateNotice(QString::fromStdString(*pendingVersion),
+                         QString::fromStdString(*pendingUrl));
+    }
+
+    // Con la ventana ya abierta: la consulta no debe competir con el arranque.
+    QTimer::singleShot(4000, this, &MainWindow::maybeCheckForUpdates);
+}
+
+void MainWindow::maybeCheckForUpdates() {
+    if (!context_.settings.getBool("updates.autoCheck").value_or(true)) return;
+
+    if (const auto last = context_.settings.getString("updates.lastCheck"); last && !last->empty()) {
+        const QDateTime lastCheck =
+            QDateTime::fromString(QString::fromStdString(*last), Qt::ISODate);
+        constexpr qint64 kOneDaySeconds = 24 * 60 * 60;
+        if (lastCheck.isValid() &&
+            lastCheck.secsTo(QDateTime::currentDateTime()) < kOneDaySeconds) {
+            return;
+        }
+    }
+    checkForUpdates(/*manual=*/false);
+}
+
+void MainWindow::checkForUpdates(bool manual) {
+    manualUpdateCheck_ = manual;
+    updateChecker_->check();
+}
+
+void MainWindow::showUpdateNotice(const QString& version, const QString& url) {
+    availableUpdateVersion_ = version;
+    availableUpdateUrl_ = url;
+    updateNoticeLabel_->setText(tr("Noctis v%1 disponible").arg(version));
+    updateNotice_->show();
+}
+
+void MainWindow::hideUpdateNotice() {
+    updateNotice_->hide();
+}
+
+void MainWindow::openAboutDialog() {
+    QMessageBox::about(
+        this, tr("Acerca de Noctis"),
+        tr("<b>Noctis</b> v%1<br>Editor de notas Markdown local-first.<br><br>"
+           "<a href=\"https://github.com/Charly-Charly-Charly/noctis\">"
+           "github.com/Charly-Charly-Charly/noctis</a>")
+            .arg(QStringLiteral(NOCTIS_VERSION)));
 }
 
 void MainWindow::openShortcutsDialog() {

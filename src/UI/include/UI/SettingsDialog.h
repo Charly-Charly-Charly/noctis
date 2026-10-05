@@ -18,11 +18,14 @@ class SettingsDialog : public QDialog {
 
 public:
     SettingsDialog(core::ISettingsStore& settings, bool darkModeEnabled, int tabWidth,
-                   const QString& notesRootPath, QWidget* parent = nullptr);
+                   const QString& notesRootPath, bool autoCheckUpdates, const QString& appVersion,
+                   QWidget* parent = nullptr);
 
 signals:
     void darkModeToggled(bool enabled);
     void tabWidthChanged(int spaces);
+    void autoCheckUpdatesToggled(bool enabled);
+    void checkUpdatesNowRequested();
 
     // El cambio recién se aplica al reiniciar Noctis: la raíz de notas se
     // reparte por valor entre MainWindow/SidebarWidget/FolderTreeWidget al

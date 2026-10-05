@@ -31,6 +31,9 @@ trabajo.
 - Corrector ortográfico en español (Hunspell)
 - Exportar a Markdown, HTML o PDF
 - Modo oscuro, barra lateral colapsable, atajos de teclado tipo editor de código
+- Edición tipo editor de código: multicursor (Alt+clic), cierre automático de pares, listas automáticas, zoom y búsqueda en la nota (Ctrl+F)
+- Íconos vectoriales (Material Icons de Google, Apache 2.0) que siguen el tema claro/oscuro
+- Aviso de nuevas versiones: consulta una vez al día el último release de GitHub (desactivable en Ajustes, sin enviar datos personales) y solo avisa; descargar lo decide el usuario
 - Sincronización opcional con un servidor propio (PHP + MySQL) y un cliente web sin dependencias
 - Anotaciones sobre las notas que viven solo en el servidor — nunca tocan el `.md`
 

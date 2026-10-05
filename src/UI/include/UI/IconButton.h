@@ -8,7 +8,7 @@ class QPropertyAnimation;
 
 namespace noctis::ui {
 
-// Botón redondo de ícono/glifo con fundido animado al pasar el mouse. QSS no
+// Botón redondo de ícono (SVG, ver Icons.h) o de texto con fundido animado al pasar el mouse. QSS no
 // tiene transiciones, así que el cambio de fondo y color de texto se dibuja a
 // mano interpolando según hoverProgress; los colores los fija el stylesheet
 // vía qproperty-* (ver Theme.cpp) para que sigan el tema claro/oscuro.
@@ -22,6 +22,11 @@ class IconButton : public QPushButton {
 
 public:
     explicit IconButton(const QString& text, QWidget* parent = nullptr);
+
+    // Nombre de un ícono de ":/icons/" (p. ej. "settings"). Si está fijado se
+    // dibuja en lugar del texto, del mismo color que tendría el texto.
+    void setIconName(const QString& name);
+    const QString& iconName() const { return iconName_; }
 
     qreal hoverProgress() const { return hoverProgress_; }
     void setHoverProgress(qreal progress);
@@ -43,6 +48,8 @@ protected:
 private:
     void animateHoverTo(qreal target);
 
+    QString iconName_;
+    int iconSize_ = 16;
     QPropertyAnimation* hoverAnimation_;
     qreal hoverProgress_ = 0.0;
     QColor borderColor_{0x1D, 0x1D, 0x1B};
@@ -50,5 +57,8 @@ private:
     QColor textColor_{0x1D, 0x1D, 0x1B};
     QColor hoverTextColor_{0xEC, 0xEE, 0xE1};
 };
+
+// Botón de ícono listo para usar: `iconName` es un archivo de ":/icons/".
+IconButton* makeIconButton(const QString& iconName, QWidget* parent);
 
 } // namespace noctis::ui
